@@ -12,7 +12,16 @@ from config import get_settings
 from schemas import FilterRule, NLSegmentResponse, MessageDraftResponse, CampaignInsightResponse
 
 settings = get_settings()
-client = OpenAI(api_key=settings.openai_api_key) if settings.openai_api_key else None
+
+if settings.groq_api_key:
+    client = OpenAI(
+        api_key=settings.groq_api_key,
+        base_url="https://api.groq.com/openai/v1"
+    )
+    model_name = settings.groq_model or "llama-3.3-70b-versatile"
+else:
+    client = OpenAI(api_key=settings.openai_api_key) if settings.openai_api_key else None
+    model_name = "gpt-4o"
 
 SYSTEM_SEGMENT_PROMPT = """
 You are an AI assistant for a D2C brand CRM system. 
@@ -99,7 +108,7 @@ def nl_to_segment_filters(query: str) -> NLSegmentResponse:
 
     try:
         response = client.chat.completions.create(
-            model="gpt-4o",
+            model=model_name,
             messages=[
                 {"role": "system", "content": SYSTEM_SEGMENT_PROMPT},
                 {"role": "user", "content": f"Create a segment for: {query}"}
@@ -148,7 +157,7 @@ Brand Name: {brand_name}
 Write 3 distinct message variants for this campaign.
 """
         response = client.chat.completions.create(
-            model="gpt-4o",
+            model=model_name,
             messages=[
                 {"role": "system", "content": SYSTEM_MESSAGE_PROMPT},
                 {"role": "user", "content": prompt}
@@ -206,7 +215,7 @@ Benchmark averages: delivery={avg_delivery_rate:.1%}, open={avg_open_rate:.1%}
 Provide insights for this marketing campaign.
 """
         response = client.chat.completions.create(
-            model="gpt-4o",
+            model=model_name,
             messages=[
                 {"role": "system", "content": SYSTEM_INSIGHT_PROMPT},
                 {"role": "user", "content": prompt}
