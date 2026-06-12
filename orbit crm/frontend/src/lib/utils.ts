@@ -55,14 +55,14 @@ export const CHANNEL_ICONS: Record<string, string> = {
 };
 
 export const STATUS_COLORS: Record<string, string> = {
-  draft: "bg-zinc-700 text-zinc-300",
-  scheduled: "bg-blue-900 text-blue-300",
-  running: "bg-amber-900 text-amber-300",
-  completed: "bg-emerald-900 text-emerald-300",
-  failed: "bg-red-900 text-red-300",
-  pending: "bg-zinc-700 text-zinc-300",
-  sent: "bg-blue-900 text-blue-300",
-  delivered: "bg-emerald-900 text-emerald-300",
-  opened: "bg-violet-900 text-violet-300",
-  clicked: "bg-pink-900 text-pink-300",
+  draft: "bg-base-300 text-base-content/85 border border-base-content/10",
+  scheduled: "bg-info/15 text-info border border-info/25",
+  running: "bg-warning/15 text-warning border border-warning/25",
+  completed: "bg-success/15 text-success border border-success/25",
+  failed: "bg-error/15 text-error border border-error/25",
+  pending: "bg-base-300 text-base-content/70 border border-base-content/10",
+  sent: "bg-info/15 text-info border border-info/25",
+  delivered: "bg-success/15 text-success border border-success/25",
+  opened: "bg-primary/15 text-primary border border-primary/25",
+  clicked: "bg-secondary/15 text-secondary border border-secondary/25",
 };

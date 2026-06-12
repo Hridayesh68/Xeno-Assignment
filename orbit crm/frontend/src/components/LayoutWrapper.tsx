@@ -22,9 +22,9 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#0a0a0f] text-zinc-500">
+      <div className="min-h-screen flex items-center justify-center bg-base-300 text-base-content/60">
         <div className="flex flex-col items-center gap-3">
-          <Loader2 size={32} className="animate-spin text-violet-500" />
+          <Loader2 size={32} className="animate-spin text-primary" />
           <p className="text-sm font-medium tracking-wide">Securing connection...</p>
         </div>
       </div>
@@ -32,7 +32,7 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
   }
 
   if (isAuthPage) {
-    return <main className="w-full min-h-screen bg-[#0a0a0f]">{children}</main>;
+    return <main className="w-full min-h-screen bg-base-300">{children}</main>;
   }
 
   return (

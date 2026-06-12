@@ -6,10 +6,11 @@ import Link from "next/link";
 import { Loader2, Zap, Lock, Mail } from "lucide-react";
 
 export default function LoginPage() {
-  const { login, loading } = useAuth();
+  const { login } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -18,11 +19,13 @@ export default function LoginPage() {
       return;
     }
     setError(null);
+    setIsSubmitting(true);
     try {
       await login(email, password);
     } catch (err: any) {
       console.error(err);
       setError(err.message || "Failed to log in. Please check your credentials.");
+      setIsSubmitting(false);
     }
   };
 
@@ -88,11 +91,11 @@ export default function LoginPage() {
 
           <button
             type="submit"
-            disabled={loading}
+            disabled={isSubmitting}
             className="w-full py-2.5 rounded-xl text-sm font-semibold text-white transition-all hover:opacity-90 flex items-center justify-center gap-2"
             style={{ background: "linear-gradient(135deg, #7c3aed, #4f46e5)" }}
           >
-            {loading ? <Loader2 size={16} className="animate-spin" /> : "Sign In"}
+            {isSubmitting ? <Loader2 size={16} className="animate-spin" /> : "Sign In"}
           </button>
         </form>
 

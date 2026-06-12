@@ -6,11 +6,12 @@ import Link from "next/link";
 import { Loader2, Zap, Lock, Mail, User } from "lucide-react";
 
 export default function SignupPage() {
-  const { signup, loading } = useAuth();
+  const { signup } = useAuth();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -19,11 +20,13 @@ export default function SignupPage() {
       return;
     }
     setError(null);
+    setIsSubmitting(true);
     try {
       await signup(email, password, name);
     } catch (err: any) {
       console.error(err);
       setError(err.message || "Failed to sign up. Email might already be taken.");
+      setIsSubmitting(false);
     }
   };
 
@@ -107,11 +110,11 @@ export default function SignupPage() {
 
           <button
             type="submit"
-            disabled={loading}
+            disabled={isSubmitting}
             className="w-full py-2.5 rounded-xl text-sm font-semibold text-white transition-all hover:opacity-90 flex items-center justify-center gap-2"
             style={{ background: "linear-gradient(135deg, #7c3aed, #4f46e5)" }}
           >
-            {loading ? <Loader2 size={16} className="animate-spin" /> : "Sign Up"}
+            {isSubmitting ? <Loader2 size={16} className="animate-spin" /> : "Sign Up"}
           </button>
         </form>
 

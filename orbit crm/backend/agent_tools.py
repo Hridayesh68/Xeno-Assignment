@@ -13,6 +13,7 @@ def execute_database_query(query: str, db: Session) -> Dict[str, Any]:
     Execute a read-only SQL query on the database.
     Only SELECT queries are allowed for safety.
     """
+    db.rollback()
     clean_query = query.strip()
     
     # Simple regex to check for SELECT and block writing keywords

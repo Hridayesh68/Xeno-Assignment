@@ -62,7 +62,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [user, loading, pathname, router]);
 
   const login = async (email: string, password: string) => {
-    setLoading(true);
     try {
       const res = await apiLogin({ email, password });
       localStorage.setItem("xeno_token", res.access_token);
@@ -71,15 +70,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(userData);
       router.push("/");
     } catch (err) {
-      setLoading(false);
       throw err;
-    } finally {
-      setLoading(false);
     }
   };
 
   const signup = async (email: string, password: string, name?: string) => {
-    setLoading(true);
     try {
       await apiSignup({ email, password, name });
       // Automatically log in after signup
@@ -90,10 +85,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(userData);
       router.push("/");
     } catch (err) {
-      setLoading(false);
       throw err;
-    } finally {
-      setLoading(false);
     }
   };
 

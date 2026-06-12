@@ -18,8 +18,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className="dark" data-theme="dark">
-      <body className={`${inter.className} bg-[#0a0a0f] text-white min-h-screen`}>
+    <html lang="en">
+      <body className={`${inter.className} bg-base-300 text-base-content min-h-screen transition-colors duration-200`}>
         <AuthProvider>
           <LayoutWrapper>{children}</LayoutWrapper>
         </AuthProvider>

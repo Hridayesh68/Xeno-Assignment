@@ -16,8 +16,6 @@
 }
 
 body {
-  background: #0a0a0f;
-  color: #e2e2e8;
   font-family: 'Inter', sans-serif;
   -webkit-font-smoothing: antialiased;
 }
@@ -25,13 +23,13 @@ body {
 /* Scrollbar */
 ::-webkit-scrollbar { width: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #2d2d3a; border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: #3d3d50; }
+::-webkit-scrollbar-thumb { background: oklch(var(--bc) / 0.15); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: oklch(var(--bc) / 0.25); }
 
 /* Glass card */
 .glass-card {
-  background: var(--surface);
-  border: 1px solid var(--border);
+  background: oklch(var(--b1) / 0.7);
+  border: 1px solid oklch(var(--bc) / 0.08);
   border-radius: 16px;
   backdrop-filter: blur(12px);
 }

@@ -18,10 +18,9 @@ import { formatDateTime, formatPercent, CHANNEL_ICONS, STATUS_COLORS } from "@/l
 
 function StatPill({ label, value, color }: { label: string; value: string | number; color: string }) {
   return (
-    <div className="flex flex-col items-center p-4 rounded-xl"
-      style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
+    <div className="flex flex-col items-center p-4 rounded-xl bg-base-200 border border-base-content/5">
       <p className={`text-2xl font-bold ${color}`}>{value}</p>
-      <p className="text-xs text-zinc-500 mt-1">{label}</p>
+      <p className="text-xs text-base-content/60 mt-1">{label}</p>
     </div>
   );
 }
@@ -108,7 +107,7 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
     );
   }
 
-  if (!campaign) return <div className="p-8 text-zinc-500">Campaign not found.</div>;
+  if (!campaign) return <div className="p-8 text-base-content/60">Campaign not found.</div>;
 
   const statusColor = STATUS_COLORS[campaign.status] || "bg-zinc-700 text-zinc-300";
 
@@ -125,29 +124,28 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
       {/* Header */}
       <div className="flex items-center gap-3 mb-8">
         <button onClick={() => router.back()}
-          className="p-2 rounded-xl text-zinc-500 hover:text-white hover:bg-white/5 transition-colors">
+          className="p-2 rounded-xl text-base-content/50 hover:text-base-content hover:bg-base-content/5 transition-colors">
           <ChevronLeft size={20} />
         </button>
         <div className="flex-1">
           <div className="flex items-center gap-3 flex-wrap">
             <span className="text-2xl">{CHANNEL_ICONS[campaign.channel]}</span>
-            <h1 className="text-3xl font-bold text-white">{campaign.name}</h1>
+            <h1 className="text-3xl font-bold text-base-content">{campaign.name}</h1>
             <span className={`badge ${statusColor}`}>
               {campaign.status === "running" && (
-                <span className="w-1.5 h-1.5 rounded-full bg-amber-400 pulse mr-1.5 inline-block" />
+                <span className="w-1.5 h-1.5 rounded-full bg-warning pulse mr-1.5 inline-block" />
               )}
               {campaign.status}
             </span>
           </div>
-          <p className="text-zinc-500 mt-1">
+          <p className="text-base-content/60 mt-1">
             {campaign.channel.toUpperCase()} · {campaign.ai_generated_message && "🤖 AI message · "}
             Created {formatDateTime(campaign.created_at)}
           </p>
         </div>
         {campaign.status === "draft" && (
           <button onClick={handleSend} disabled={sending}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-white disabled:opacity-50 transition-all hover:opacity-90"
-            style={{ background: "linear-gradient(135deg, #7c3aed, #4f46e5)" }}>
+            className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-primary-content bg-primary hover:opacity-90">
             {sending ? <Loader2 size={16} className="animate-spin" /> : <Play size={16} />}
             Launch Campaign
           </button>
@@ -157,18 +155,18 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
       {/* Stats Grid */}
       {stats && (
         <div className="grid grid-cols-5 gap-3 mb-6">
-          <StatPill label="Total Sent" value={stats.total_sent.toLocaleString()} color="text-white" />
-          <StatPill label="Delivered" value={`${stats.total_delivered} (${formatPercent(stats.delivery_rate)})`} color="text-emerald-400" />
-          <StatPill label="Opened" value={`${stats.total_opened} (${formatPercent(stats.open_rate)})`} color="text-blue-400" />
-          <StatPill label="Clicked" value={`${stats.total_clicked} (${formatPercent(stats.click_rate)})`} color="text-violet-400" />
-          <StatPill label="Failed" value={stats.total_failed} color="text-red-400" />
+          <StatPill label="Total Sent" value={stats.total_sent.toLocaleString()} color="text-base-content" />
+          <StatPill label="Delivered" value={`${stats.total_delivered} (${formatPercent(stats.delivery_rate)})`} color="text-success" />
+          <StatPill label="Opened" value={`${stats.total_opened} (${formatPercent(stats.open_rate)})`} color="text-info" />
+          <StatPill label="Clicked" value={`${stats.total_clicked} (${formatPercent(stats.click_rate)})`} color="text-primary" />
+          <StatPill label="Failed" value={stats.total_failed} color="text-error" />
         </div>
       )}
 
       <div className="grid grid-cols-3 gap-6 mb-6">
         {/* Chart */}
-        <div className="glass-card p-5 col-span-1">
-          <h3 className="font-semibold text-white text-sm mb-4">Delivery Breakdown</h3>
+        <div className="glass-card p-5 col-span-1 border border-base-content/10">
+          <h3 className="font-semibold text-base-content text-sm mb-4">Delivery Breakdown</h3>
           {pieData.length > 0 ? (
             <>
               <ResponsiveContainer width="100%" height={180}>
@@ -180,8 +178,9 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
                     ))}
                   </Pie>
                   <Tooltip
-                    contentStyle={{ background: "#1a1a26", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 10 }}
-                    labelStyle={{ color: "#e2e2e8" }}
+                    contentStyle={{ background: "oklch(var(--b2))", border: "1px solid oklch(var(--bc) / 0.1)", borderRadius: 10 }}
+                    labelStyle={{ color: "oklch(var(--bc))" }}
+                    itemStyle={{ color: "oklch(var(--bc))" }}
                   />
                 </PieChart>
               </ResponsiveContainer>
@@ -190,15 +189,15 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
                   <div key={d.name} className="flex items-center justify-between text-xs">
                     <div className="flex items-center gap-2">
                       <div className="w-2.5 h-2.5 rounded-full" style={{ background: d.color }} />
-                      <span className="text-zinc-400">{d.name}</span>
+                      <span className="text-base-content/60">{d.name}</span>
                     </div>
-                    <span className="text-white font-medium">{d.value}</span>
+                    <span className="text-base-content font-semibold">{d.value}</span>
                   </div>
                 ))}
               </div>
             </>
           ) : (
-            <div className="flex items-center justify-center h-48 text-zinc-600 text-sm">
+            <div className="flex items-center justify-center h-48 text-base-content/30 text-sm">
               No data yet — launch the campaign first
             </div>
           )}
@@ -206,33 +205,31 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
 
         {/* Message Preview + AI Insight */}
         <div className="col-span-2 space-y-5">
-          <div className="glass-card p-5">
+          <div className="glass-card p-5 border border-base-content/10">
             <div className="flex items-center gap-2 mb-3">
-              <MessageSquare size={14} className="text-zinc-500" />
-              <h3 className="font-semibold text-white text-sm">Message Template</h3>
+              <MessageSquare size={14} className="text-base-content/50" />
+              <h3 className="font-semibold text-base-content text-sm">Message Template</h3>
               {campaign.ai_generated_message && (
-                <span className="badge" style={{ background: "rgba(139,92,246,0.1)", color: "#a78bfa", border: "1px solid rgba(139,92,246,0.2)" }}>
+                <span className="badge bg-primary/10 text-primary border border-primary/20">
                   AI-drafted
                 </span>
               )}
             </div>
-            <p className="text-sm text-zinc-300 p-3 rounded-xl leading-relaxed"
-              style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
+            <p className="text-sm text-base-content/85 p-3 rounded-xl leading-relaxed bg-base-200 border border-base-content/5">
               {campaign.message_template}
             </p>
           </div>
 
           {/* AI Insight */}
-          <div className="glass-card p-5">
+          <div className="glass-card p-5 border border-base-content/10">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
-                <Sparkles size={14} className="text-violet-400" />
-                <h3 className="font-semibold text-white text-sm">AI Campaign Insight</h3>
+                <Sparkles size={14} className="text-primary" />
+                <h3 className="font-semibold text-base-content text-sm">AI Campaign Insight</h3>
               </div>
               {!insight && stats && stats.total_sent > 0 && (
                 <button onClick={loadInsight} disabled={insightLoading}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-violet-300 hover:text-white transition-colors disabled:opacity-50"
-                  style={{ background: "rgba(139,92,246,0.1)" }}>
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-primary bg-primary/10 border border-primary/20 hover:bg-primary hover:text-primary-content transition-all disabled:opacity-50">
                   {insightLoading ? <Loader2 size={12} className="animate-spin" /> : <TrendingUp size={12} />}
                   Analyse
                 </button>
@@ -240,22 +237,22 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
             </div>
             {insight ? (
               <div className="space-y-3">
-                <p className="text-sm text-zinc-300">{insight.summary}</p>
+                <p className="text-sm text-base-content/85">{insight.summary}</p>
                 <div>
-                  <p className="text-xs text-zinc-600 mb-1.5">Highlights</p>
+                  <p className="text-xs text-base-content/50 mb-1.5">Highlights</p>
                   {insight.highlights.map((h, i) => (
-                    <p key={i} className="text-xs text-zinc-400 mb-1">✅ {h}</p>
+                    <p key={i} className="text-xs text-success mb-1">✅ {h}</p>
                   ))}
                 </div>
                 <div>
-                  <p className="text-xs text-zinc-600 mb-1.5">Suggestions</p>
+                  <p className="text-xs text-base-content/50 mb-1.5">Suggestions</p>
                   {insight.suggestions.map((s, i) => (
-                    <p key={i} className="text-xs text-zinc-400 mb-1">💡 {s}</p>
+                    <p key={i} className="text-xs text-base-content/80 mb-1">💡 {s}</p>
                   ))}
                 </div>
               </div>
             ) : (
-              <p className="text-sm text-zinc-600">
+              <p className="text-sm text-base-content/40">
                 {stats?.total_sent === 0
                   ? "Launch the campaign to get AI insights after it completes."
                   : "Click 'Analyse' to generate AI-powered performance insights."}
@@ -266,20 +263,20 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
       </div>
 
       {/* Communication Log */}
-      <div className="glass-card overflow-hidden">
-        <div className="px-5 py-4" style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+      <div className="glass-card overflow-hidden border border-base-content/10">
+        <div className="px-5 py-4 border-b border-base-content/10">
           <div className="flex items-center gap-2">
-            <Users size={14} className="text-zinc-500" />
-            <h3 className="font-semibold text-white text-sm">
+            <Users size={14} className="text-base-content/50" />
+            <h3 className="font-semibold text-base-content text-sm">
               Communication Log ({comms.length.toLocaleString()})
             </h3>
           </div>
         </div>
         <table className="w-full">
           <thead>
-            <tr style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+            <tr className="border-b border-base-content/10">
               {["Customer", "Message (preview)", "Status", "Sent", "Delivered", "Opened"].map(h => (
-                <th key={h} className="text-left px-5 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wider">
+                <th key={h} className="text-left px-5 py-3 text-xs font-bold text-base-content/60 uppercase tracking-wider">
                   {h}
                 </th>
               ))}
@@ -288,16 +285,15 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
           <tbody>
             {comms.length === 0 ? (
               <tr>
-                <td colSpan={6} className="text-center py-12 text-zinc-600">
+                <td colSpan={6} className="text-center py-12 text-base-content/40">
                   No messages sent yet
                 </td>
               </tr>
             ) : comms.slice(0, 50).map(c => (
               <tr key={c.id}
-                className="hover:bg-white/[0.02] transition-colors"
-                style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
-                <td className="px-5 py-3 text-sm text-zinc-300">{c.customer_id.slice(0, 8)}…</td>
-                <td className="px-5 py-3 text-xs text-zinc-500 max-w-[200px] truncate">
+                className="hover:bg-base-content/5 transition-colors border-b border-base-content/5">
+                <td className="px-5 py-3 text-sm text-base-content/85">{c.customer_id.slice(0, 8)}…</td>
+                <td className="px-5 py-3 text-xs text-base-content/60 max-w-[200px] truncate">
                   {c.message.slice(0, 60)}…
                 </td>
                 <td className="px-5 py-3">
@@ -306,16 +302,15 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
                     <span className={`${STATUS_COLORS[c.status]} badge`}>{c.status}</span>
                   </span>
                 </td>
-                <td className="px-5 py-3 text-xs text-zinc-500">{formatDateTime(c.sent_at)}</td>
-                <td className="px-5 py-3 text-xs text-zinc-500">{formatDateTime(c.delivered_at)}</td>
-                <td className="px-5 py-3 text-xs text-zinc-500">{formatDateTime(c.opened_at)}</td>
+                <td className="px-5 py-3 text-xs text-base-content/60">{formatDateTime(c.sent_at)}</td>
+                <td className="px-5 py-3 text-xs text-base-content/60">{formatDateTime(c.delivered_at)}</td>
+                <td className="px-5 py-3 text-xs text-base-content/60">{formatDateTime(c.opened_at)}</td>
               </tr>
             ))}
           </tbody>
         </table>
         {comms.length > 50 && (
-          <div className="px-5 py-3 text-xs text-zinc-600 text-center"
-            style={{ borderTop: "1px solid rgba(255,255,255,0.04)" }}>
+          <div className="px-5 py-3 text-xs text-base-content/50 text-center border-t border-base-content/5">
             Showing first 50 of {comms.length.toLocaleString()} communications
           </div>
         )}

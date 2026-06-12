@@ -147,8 +147,10 @@ The Chat Copilot endpoint equips the LLM agent with the following executable too
   - **Email**: `admin@xeno.com`
   - **Password**: `password123`
 
-### 2. daisyUI Theme Switching
-- The Next.js frontend has been integrated with daisyUI themes. You can change themes dynamically from the dropdown select menu in the Sidebar. Supported themes include `Midnight (dark)`, `Clean Light (light)`, `Luxury Gold (luxury)`, `Neon Night (night)`, `Synthwave (synthwave)`, `Amber Retro (retro)`, and `Emerald (emerald)`.
+### 2. daisyUI Theme Switching & CSS-V4 Architecture
+- The Next.js frontend is integrated with daisyUI themes, using Tailwind CSS v4's modern `@import "tailwindcss";` and `@plugin "daisyui" { themes: all; }` syntax. 
+- You can change themes dynamically from the dropdown select menu in the Sidebar. Supported themes include `Midnight (dark)`, `Clean Light (light)`, `Luxury Gold (luxury)`, `Neon Night (night)`, `Synthwave (synthwave)`, `Amber Retro (retro)`, and `Emerald (emerald)`.
+- All pages (Dashboard, Customers, Segments, Campaigns, Users, and Chat) are fully theme-adaptive, ensuring that background panels, tables, fields, placeholders, and buttons render cleanly across high-contrast light themes and neon dark themes.
 
 ### 3. Campaign & Customer Deletion
 - Delete buttons are added to the Customer table and Campaign card dashboards.
@@ -157,6 +159,7 @@ The Chat Copilot endpoint equips the LLM agent with the following executable too
 ### 4. AI Resiliency (Groq -> Gemini Fallback)
 - If the primary Groq API key is rate-limited, exhausted, or down, the service will catch the error and automatically fall back to using the Google Gemini API (configured via the `GEMINI_API_KEY` environment variable in `.env`) using the fast `gemini-2.5-flash` model.
 
-### 5. Chat Copilot Chart Widgets
+### 5. Chat Copilot Chart Widgets & Theme-Aware SVGs
 - When query tool results return numerical rows, a dynamic Recharts BarChart widget will render inline within the AI Copilot chat to visualize the data automatically.
+- Recharts visualizations (weekly dashboard AreaCharts and chat copilot BarCharts) utilize Tailwind theme-based utility classes (such as `fill-primary`, `fill-success`, `fill-info`, `stroke-primary`) to ensure visual compliance and crisp color rendering regardless of the active light/dark theme.
 
