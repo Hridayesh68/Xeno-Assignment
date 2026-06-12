@@ -236,10 +236,24 @@ def delete_campaign(campaign_id: str, db: Session) -> Dict[str, Any]:
     Delete a campaign and stop dispatch if running.
     """
     try:
+        # 1. Try finding by exact ID first
         campaign = db.query(models.Campaign).filter(models.Campaign.id == campaign_id).first()
+        
+        # 2. If not found, try to search by name/partial name case-insensitively
         if not campaign:
-            return {"error": f"Campaign with ID '{campaign_id}' not found."}
+            # Clean up suffixes like _campaign_id, _id, etc.
+            clean_name = campaign_id.replace("_campaign_id", "").replace("_id", "").replace("-", " ").replace("_", " ").strip()
+            campaign = db.query(models.Campaign).filter(
+                (models.Campaign.name.ilike(clean_name)) |
+                (models.Campaign.name.ilike(f"%{clean_name}%"))
+            ).first()
             
+        if not campaign:
+            return {"error": f"Campaign with ID or name resembling '{campaign_id}' not found."}
+            
+        campaign_id_actual = campaign.id
+        campaign_name_actual = campaign.name
+
         # Stop dispatch if running (can just update status to STOPPED first, then delete)
         if campaign.status == models.CampaignStatus.RUNNING:
             campaign.status = models.CampaignStatus.STOPPED
@@ -249,8 +263,8 @@ def delete_campaign(campaign_id: str, db: Session) -> Dict[str, Any]:
         db.commit()
         return {
             "success": True,
-            "campaign_id": campaign_id,
-            "message": f"Campaign '{campaign.name}' successfully deleted."
+            "campaign_id": campaign_id_actual,
+            "message": f"Campaign '{campaign_name_actual}' successfully deleted."
         }
     except Exception as e:
         db.rollback()
@@ -421,7 +435,7 @@ AGENT_TOOLS_SCHEMA = [
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "campaign_id": {"type": "string", "description": "UUID string of the campaign to delete."}
+                    "campaign_id": {"type": "string", "description": "UUID string or name of the campaign to delete."}
                 },
                 "required": ["campaign_id"]
             }

@@ -1,0 +1,81 @@
+name: Xeno CRM CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  lint-and-test:
+    name: Lint, Test, and Build Verify
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Install uv (Fast Package Manager)
+        uses: astral-sh/setup-uv@v3
+        with:
+          version: "latest"
+          enable-cache: true
+
+      - name: Set up Python 3.12
+        run: uv python install 3.12
+
+      - name: Install Local Dependencies
+        run: |
+          cd "orbit crm/backend"
+          uv venv
+          uv pip install -r requirements.txt
+
+      - name: Docker Build Test (Lightweight Verification)
+        run: |
+          cd "orbit crm"
+          docker build -t crm-api:test ./backend
+          docker build -t channel-service:test ./channel-stub
+
+  deploy:
+    name: Deploy to AWS EC2
+    needs: lint-and-test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup SSH Keys for AWS EC2 Connection
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H "${{ secrets.EC2_HOST }}" >> ~/.ssh/known_hosts
+
+      - name: Connect and Deploy on EC2
+        run: |
+          ssh -i ~/.ssh/id_rsa ubuntu@${{ secrets.EC2_HOST }} "
+            cd /home/ubuntu/orbit-crm || git clone https://github.com/${{ github.repository }} /home/ubuntu/orbit-crm
+            cd /home/ubuntu/orbit-crm
+            git pull origin main
+            
+            # Re-build and re-launch containers gracefully
+            docker compose down
+            docker compose up --build -d
+            
+            # Wait for DB and container to be up
+            echo 'Waiting for containers to start...'
+            sleep 10
+            
+            # Execute database migrations automatically inside the container
+            docker compose exec -T crm-api alembic upgrade head
+            
+            # Run the seed script to seed the data if the database is fresh
+            docker compose exec -T crm-api python seed.py
+            
+            # Verify container health status
+            docker compose ps
+          "

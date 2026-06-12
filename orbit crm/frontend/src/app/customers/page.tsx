@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { Search, Users, MapPin, ShoppingBag, IndianRupee, Tag, Trash2 } from "lucide-react";
-import { getCustomers, deleteCustomer, Customer } from "@/lib/api";
+import { Search, Users, MapPin, ShoppingBag, IndianRupee, Tag, Trash2, Plus, X } from "lucide-react";
+import { getCustomers, deleteCustomer, createCustomer, Customer } from "@/lib/api";
 import { formatCurrency, formatDate, daysAgo, cn } from "@/lib/utils";
 
 export default function CustomersPage() {
@@ -12,6 +12,10 @@ export default function CustomersPage() {
   const [city, setCity] = useState("");
   const [minSpend, setMinSpend] = useState("");
   const [total, setTotal] = useState(0);
+
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [newCustomer, setNewCustomer] = useState({ name: "", email: "", phone: "", city: "" });
+  const [creating, setCreating] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -44,6 +48,28 @@ export default function CustomersPage() {
     }
   };
 
+  const handleCreate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setCreating(true);
+    try {
+      const payload = {
+        name: newCustomer.name,
+        email: newCustomer.email,
+        phone: newCustomer.phone.trim() || undefined,
+        city: newCustomer.city.trim() || undefined,
+      };
+      await createCustomer(payload);
+      setIsModalOpen(false);
+      setNewCustomer({ name: "", email: "", phone: "", city: "" });
+      await load();
+    } catch (e: any) {
+      console.error(e);
+      alert(e.message || "Failed to create customer.");
+    } finally {
+      setCreating(false);
+    }
+  };
+
   const CITIES = ["Mumbai", "Delhi", "Bangalore", "Chennai", "Hyderabad", "Pune", "Kolkata"];
 
   return (
@@ -56,6 +82,13 @@ export default function CustomersPage() {
             {total.toLocaleString()} shoppers in your database
           </p>
         </div>
+        <button
+          onClick={() => setIsModalOpen(true)}
+          className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-primary-content bg-primary hover:opacity-90 transition-opacity"
+        >
+          <Plus size={16} />
+          Add Customer
+        </button>
       </div>
 
       {/* Filters */}
@@ -181,6 +214,88 @@ export default function CustomersPage() {
           </tbody>
         </table>
       </div>
+
+      {/* Add Customer Modal */}
+      {isModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in">
+          <div className="bg-base-100 rounded-2xl w-full max-w-md overflow-hidden shadow-2xl border border-base-content/10 flex flex-col max-h-[90vh]">
+            <div className="flex items-center justify-between p-4 border-b border-base-content/10">
+              <h2 className="font-semibold text-lg text-base-content">Add New Customer</h2>
+              <button
+                onClick={() => setIsModalOpen(false)}
+                className="p-1 text-base-content/50 hover:text-base-content hover:bg-base-content/10 rounded-lg transition-colors"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            
+            <form onSubmit={handleCreate} className="p-4 space-y-4 overflow-y-auto">
+              <div>
+                <label className="block text-sm font-medium text-base-content/70 mb-1">Name</label>
+                <input
+                  type="text"
+                  required
+                  value={newCustomer.name}
+                  onChange={e => setNewCustomer({ ...newCustomer, name: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl text-sm text-base-content bg-base-200 border border-base-content/10 outline-none focus:ring-1 focus:ring-primary"
+                  placeholder="John Doe"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-base-content/70 mb-1">Email</label>
+                <input
+                  type="email"
+                  required
+                  value={newCustomer.email}
+                  onChange={e => setNewCustomer({ ...newCustomer, email: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl text-sm text-base-content bg-base-200 border border-base-content/10 outline-none focus:ring-1 focus:ring-primary"
+                  placeholder="john@example.com"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-base-content/70 mb-1">Phone (Optional)</label>
+                <input
+                  type="tel"
+                  value={newCustomer.phone}
+                  onChange={e => setNewCustomer({ ...newCustomer, phone: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl text-sm text-base-content bg-base-200 border border-base-content/10 outline-none focus:ring-1 focus:ring-primary"
+                  placeholder="+91 9876543210"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-base-content/70 mb-1">City (Optional)</label>
+                <input
+                  type="text"
+                  value={newCustomer.city}
+                  onChange={e => setNewCustomer({ ...newCustomer, city: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl text-sm text-base-content bg-base-200 border border-base-content/10 outline-none focus:ring-1 focus:ring-primary"
+                  placeholder="Mumbai"
+                />
+              </div>
+
+              <div className="pt-2 flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsModalOpen(false)}
+                  className="px-4 py-2 rounded-xl text-sm font-medium text-base-content/70 hover:bg-base-content/5 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={creating}
+                  className="px-4 py-2 rounded-xl text-sm font-semibold text-primary-content bg-primary hover:opacity-90 transition-opacity disabled:opacity-50"
+                >
+                  {creating ? "Adding..." : "Add Customer"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

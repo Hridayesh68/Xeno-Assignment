@@ -14,6 +14,7 @@ function CampaignCard({ campaign, onSend }: { campaign: Campaign; onSend: (id: s
 
   const handleSend = async (e: React.MouseEvent) => {
     e.preventDefault();
+    e.stopPropagation();
     setSending(true);
     try {
       await sendCampaign(campaign.id);
@@ -27,6 +28,7 @@ function CampaignCard({ campaign, onSend }: { campaign: Campaign; onSend: (id: s
 
   const handleDelete = async (e: React.MouseEvent) => {
     e.preventDefault();
+    e.stopPropagation();
     if (!confirm(`Are you sure you want to delete campaign "${campaign.name}"?`)) return;
     try {
       await deleteCampaign(campaign.id);
