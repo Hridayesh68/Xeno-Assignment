@@ -203,7 +203,7 @@ function NewSegmentForm() {
             value={nlQuery}
             onChange={e => setNlQuery(e.target.value)}
             onKeyDown={e => e.key === "Enter" && runNL()}
-            placeholder='e.g. "Customers who spent over ₹5000 but haven\'t bought in 60 days"'
+            placeholder={"e.g. \"Customers who spent over ₹5000 but haven't bought in 60 days\""}
             className="flex-1 px-4 py-2.5 rounded-xl text-sm text-white placeholder-zinc-600 outline-none focus:ring-1 focus:ring-violet-500"
             style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}
           />

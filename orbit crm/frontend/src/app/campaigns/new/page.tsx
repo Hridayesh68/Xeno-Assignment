@@ -108,7 +108,7 @@ function NewCampaignForm() {
             <h2 className="font-semibold text-white mb-1">Campaign Name</h2>
             <p className="text-xs text-zinc-500 mb-4">Give your campaign a clear name</p>
             <input type="text" value={name} onChange={e => setName(e.target.value)}
-              placeholder='e.g. "Re-engage Dormant VIPs — June 2026"'
+              placeholder={"e.g. \"Re-engage Dormant VIPs — June 2026\""}
               className="w-full px-4 py-2.5 rounded-xl text-sm text-white placeholder-zinc-600 outline-none focus:ring-1 focus:ring-violet-500"
               style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}
             />
@@ -202,7 +202,7 @@ function NewCampaignForm() {
               </span>
             </div>
             <input type="text" value={aiGoal} onChange={e => setAiGoal(e.target.value)}
-              placeholder='Campaign goal (e.g. "Offer 15% discount to win them back")'
+              placeholder={"Campaign goal (e.g. \"Offer 15% discount to win them back\")"}
               className="w-full px-4 py-2.5 rounded-xl text-sm text-white placeholder-zinc-600 outline-none focus:ring-1 focus:ring-violet-500 mb-3"
               style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}
             />
@@ -240,7 +240,7 @@ function NewCampaignForm() {
             <h2 className="font-semibold text-white mb-1 text-sm">Message Template</h2>
             <p className="text-xs text-zinc-500 mb-3">Use {"{{name}}"} to personalise with customer first name.</p>
             <textarea value={message} onChange={e => setMessage(e.target.value)}
-              placeholder='e.g. "Hi {{name}}, we miss you! Here\'s 20% off just for you 🎁"'
+              placeholder={"e.g. \"Hi {{name}}, we miss you! Here's 20% off just for you 🎁\""}
               rows={4}
               className="w-full px-4 py-3 rounded-xl text-sm text-white placeholder-zinc-600 outline-none focus:ring-1 focus:ring-violet-500 resize-none"
               style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}
