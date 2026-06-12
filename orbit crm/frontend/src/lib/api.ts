@@ -234,3 +234,33 @@ export const aiCampaignInsight = (campaign_id: string) =>
 
 export const aiSuggestSegments = () =>
   apiFetch<AISegmentSuggestion[]>("/api/ai/suggest-segments");
+
+// ─── AI Chat Agent ──────────────────────────────────────────────────────────
+
+export interface ChatMessage {
+  role: "system" | "user" | "assistant" | "tool";
+  content: string | null;
+  name?: string;
+  tool_calls?: any[];
+  tool_call_id?: string;
+}
+
+export interface ChatResponse {
+  role: "assistant";
+  content: string;
+  agent_logs: {
+    step: number;
+    tool_calls: {
+      id: string;
+      name: string;
+      arguments: any;
+    }[];
+  }[];
+}
+
+export const aiChat = (messages: ChatMessage[]) =>
+  apiFetch<ChatResponse>("/api/ai/chat", {
+    method: "POST",
+    body: JSON.stringify({ messages }),
+  });
+

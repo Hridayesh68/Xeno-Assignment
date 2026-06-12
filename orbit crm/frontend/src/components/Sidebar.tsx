@@ -17,6 +17,7 @@ const navItems = [
   { href: "/customers", label: "Customers", icon: Users },
   { href: "/segments", label: "Segments", icon: Filter },
   { href: "/campaigns", label: "Campaigns", icon: Megaphone },
+  { href: "/chat", label: "AI Copilot", icon: Sparkles },
 ];
 
 export default function Sidebar() {

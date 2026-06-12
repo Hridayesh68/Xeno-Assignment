@@ -2,6 +2,7 @@
 FastAPI main application — Xeno CRM Backend
 """
 import asyncio
+import json
 from datetime import datetime
 from typing import List, Optional
 from fastapi import FastAPI, Depends, HTTPException, BackgroundTasks, Query
@@ -11,6 +12,7 @@ from sqlalchemy import func, desc
 
 import models
 import schemas
+from pydantic import BaseModel
 from database import engine, get_db
 from segment_engine import evaluate_segment, get_segment_customers
 from campaign_service import execute_campaign_send, process_receipt_callback, update_campaign_stats
@@ -417,3 +419,165 @@ def ai_campaign_insight(data: schemas.CampaignInsightRequest, db: Session = Depe
 def ai_suggest_segments():
     """Return AI-suggested segment templates."""
     return suggest_segments({})
+
+
+# ─── Chat Agent Endpoints ───────────────────────────────────────────────────
+
+from agent_tools import AGENT_TOOLS_SCHEMA, execute_database_query, create_audience_segment, draft_and_send_campaign
+
+class ChatMessage(BaseModel):
+    role: str
+    content: Optional[str] = None
+    name: Optional[str] = None
+    tool_calls: Optional[List[dict]] = None
+    tool_call_id: Optional[str] = None
+
+class ChatRequest(BaseModel):
+    messages: List[ChatMessage]
+
+AGENT_SYSTEM_PROMPT = """You are Xeno AI, an intelligent marketing copilot for D2C brands. 
+You help marketers analyze customer data, segment their audience, and execute campaigns.
+
+Database Schema Overview:
+1. "customers": Customer profiles. id (UUID string), name, email, phone, city, tags (JSON array of strings like ["vip"]), total_spend (Float, in INR), order_count (Integer), last_order_at (Timestamp), created_at (Timestamp).
+2. "orders": Shopper orders. id, customer_id (FK to customers), amount (Float), items (JSON array of items like [{"name": "product", "qty": 1, "price": 100}]), channel (online/in-store), ordered_at.
+3. "segments": Target customer lists. id, name, description, filter_rules (JSON rules), nl_query, filter_type (manual/ai), customer_count.
+4. "campaigns": Marketing campaigns. id, name, segment_id (FK), channel (whatsapp/sms/email/rcs), message_template, status (draft/scheduled/running/completed/failed), total_sent, total_delivered, total_failed, total_opened, total_clicked.
+5. "communications": Message dispatch logs. id, campaign_id (FK), customer_id (FK), channel, message, status (pending/sent/delivered/failed/opened/clicked), sent_at, delivered_at, opened_at, clicked_at, failed_at.
+
+Capabilities & Guidelines:
+- You have tools to query the database, create segments, and send campaigns.
+- Use `execute_database_query` to fetch statistics, counts, lists, or metrics. Always write valid read-only PostgreSQL queries. If queried data is requested, always render it clearly in your response.
+- Use `create_audience_segment` when asked to create segments, VIP groups, or custom target lists.
+- Use `draft_and_send_campaign` to launch whatsapp/sms/email campaigns.
+- When executing SQL, make sure to query JSON arrays (like tags) correctly if needed, or query standard attributes. In SQLite, tags is a JSON array string. In Postgres/Supabase, it is stored as JSON. Try to write compatible queries or standard select queries.
+- Be concise, helpful, and professional. Always verify success and summarize tool execution results to the user.
+"""
+
+@app.post("/api/ai/chat")
+async def ai_chat(
+    data: ChatRequest,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db)
+):
+    if not settings.groq_api_key:
+        raise HTTPException(status_code=503, detail="Groq API key not configured")
+        
+    from openai import OpenAI
+    client = OpenAI(api_key=settings.groq_api_key, base_url="https://api.groq.com/openai/v1")
+    model_name = settings.groq_model or "llama-3.3-70b-versatile"
+    
+    api_messages = [{"role": "system", "content": AGENT_SYSTEM_PROMPT}]
+    for msg in data.messages:
+        m = {"role": msg.role, "content": msg.content}
+        if msg.name:
+            m["name"] = msg.name
+        if msg.tool_call_id:
+            m["tool_call_id"] = msg.tool_call_id
+        if msg.tool_calls:
+            m["tool_calls"] = msg.tool_calls
+        api_messages.append(m)
+        
+    agent_logs = []
+    max_iterations = 5
+    
+    for _ in range(max_iterations):
+        try:
+            response = client.chat.completions.create(
+                model=model_name,
+                messages=api_messages,
+                tools=AGENT_TOOLS_SCHEMA,
+                tool_choice="auto",
+                temperature=0.3
+            )
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Groq API Error: {str(e)}")
+            
+        choice = response.choices[0]
+        msg = choice.message
+        
+        if msg.tool_calls:
+            assistant_msg = {
+                "role": "assistant",
+                "content": msg.content or "",
+                "tool_calls": [
+                    {
+                        "id": tc.id,
+                        "type": tc.type,
+                        "function": {
+                            "name": tc.function.name,
+                            "arguments": tc.function.arguments
+                        }
+                    } for tc in msg.tool_calls
+                ]
+            }
+            api_messages.append(assistant_msg)
+            
+            tool_calls_log = []
+            
+            for tc in msg.tool_calls:
+                func_name = tc.function.name
+                func_args = {}
+                try:
+                    arguments_str = tc.function.arguments
+                    # Preprocess arguments to handle escaped single quotes (e.g. \' -> ')
+                    arguments_str_cleaned = arguments_str.replace("\\'", "'")
+                    func_args = json.loads(arguments_str_cleaned)
+                    
+                    if func_name == "execute_database_query":
+                        res = execute_database_query(func_args.get("query", ""), db)
+                    elif func_name == "create_audience_segment":
+                        res = create_audience_segment(
+                            name=func_args.get("name"),
+                            description=func_args.get("description", ""),
+                            filter_rules=func_args.get("filter_rules", []),
+                            db=db
+                        )
+                    elif func_name == "draft_and_send_campaign":
+                        res = draft_and_send_campaign(
+                            name=func_args.get("name"),
+                            segment_id=func_args.get("segment_id"),
+                            channel=func_args.get("channel"),
+                            message_template=func_args.get("message_template"),
+                            db=db,
+                            background_tasks=background_tasks
+                        )
+                    else:
+                        res = {"error": f"Tool '{func_name}' is not supported."}
+                except Exception as err:
+                    print(f"Error processing tool '{func_name}': {err}")
+                    res = {"error": f"Failed to execute tool '{func_name}': {str(err)}"}
+                    
+                tool_calls_log.append({
+                    "id": tc.id,
+                    "name": func_name,
+                    "arguments": func_args or tc.function.arguments,
+                    "result": res
+                })
+                
+                tool_msg = {
+                    "role": "tool",
+                    "name": func_name,
+                    "tool_call_id": tc.id,
+                    "content": json.dumps(res)
+                }
+                api_messages.append(tool_msg)
+                
+            agent_logs.append({
+                "step": len(agent_logs) + 1,
+                "tool_calls": tool_calls_log
+            })
+            
+        else:
+            return {
+                "role": "assistant",
+                "content": msg.content,
+                "agent_logs": agent_logs
+            }
+            
+    return {
+        "role": "assistant",
+        "content": "Agent session timed out before concluding.",
+        "agent_logs": agent_logs
+    }
+
