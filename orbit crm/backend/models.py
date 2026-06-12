@@ -29,8 +29,8 @@ class Customer(Base):
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
 
-    orders = relationship("Order", back_populates="customer")
-    communications = relationship("Communication", back_populates="customer")
+    orders = relationship("Order", back_populates="customer", cascade="all, delete-orphan")
+    communications = relationship("Communication", back_populates="customer", cascade="all, delete-orphan")
 
 
 class Order(Base):
@@ -74,6 +74,7 @@ class CampaignStatus(str, enum.Enum):
     RUNNING = "running"
     COMPLETED = "completed"
     FAILED = "failed"
+    STOPPED = "stopped"
 
 
 class ChannelType(str, enum.Enum):
@@ -107,7 +108,7 @@ class Campaign(Base):
     total_clicked = Column(Integer, default=0)
 
     segment = relationship("Segment", back_populates="campaigns")
-    communications = relationship("Communication", back_populates="campaign")
+    communications = relationship("Communication", back_populates="campaign", cascade="all, delete-orphan")
 
 
 class CommunicationStatus(str, enum.Enum):
@@ -141,3 +142,14 @@ class Communication(Base):
 
     campaign = relationship("Campaign", back_populates="communications")
     customer = relationship("Customer", back_populates="communications")
+
+
+class User(Base):
+    __tablename__ = "users"
+
+    id = Column(String, primary_key=True, default=gen_uuid)
+    email = Column(String(255), unique=True, nullable=False, index=True)
+    hashed_password = Column(String(255), nullable=False)
+    name = Column(String(255), nullable=True)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, server_default=func.now())

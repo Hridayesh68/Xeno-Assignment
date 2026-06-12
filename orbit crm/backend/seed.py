@@ -11,6 +11,7 @@ from datetime import datetime, timedelta
 from faker import Faker
 from database import SessionLocal, engine
 import models
+from auth_utils import hash_password
 
 fake = Faker("en_IN")  # Indian locale
 models.Base.metadata.create_all(bind=engine)
@@ -58,9 +59,26 @@ def random_date(start_days_ago: int, end_days_ago: int = 0) -> datetime:
 def seed():
     db = SessionLocal()
     try:
+        # Seed default admin user if not exists
+        admin_email = "admin@xeno.com"
+        admin = db.query(models.User).filter(models.User.email == admin_email).first()
+        if not admin:
+            print("Seeding default admin user (admin@xeno.com)...")
+            admin_user = models.User(
+                email=admin_email,
+                name="Admin User",
+                hashed_password=hash_password("password123"),
+                is_active=True
+            )
+            db.add(admin_user)
+            db.commit()
+            print("Default admin user seeded successfully.")
+        else:
+            print("Admin user already exists.")
+
         # Check if already seeded
         if db.query(models.Customer).count() > 10:
-            print("Database already seeded. Skipping.")
+            print("Database already seeded. Skipping customer/order seeding.")
             return
 
         print("Seeding 500 customers + orders...")

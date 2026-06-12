@@ -1,8 +1,19 @@
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
+  
+  if (typeof window !== "undefined") {
+    const token = localStorage.getItem("xeno_token");
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+  }
+
   const res = await fetch(`${API_BASE}${path}`, {
-    headers: { "Content-Type": "application/json", ...options?.headers },
+    headers: { ...headers, ...options?.headers },
     ...options,
   });
   if (!res.ok) {
@@ -262,5 +273,61 @@ export const aiChat = (messages: ChatMessage[]) =>
   apiFetch<ChatResponse>("/api/ai/chat", {
     method: "POST",
     body: JSON.stringify({ messages }),
+  });
+
+// ─── Auth API ────────────────────────────────────────────────────────────────
+
+export interface User {
+  id: string;
+  email: string;
+  name: string | null;
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface Token {
+  access_token: string;
+  token_type: string;
+}
+
+export const signup = (data: { email: string; password?: string; name?: string }) =>
+  apiFetch<User>("/api/auth/signup", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+
+export const login = (data: { email: string; password?: string }) =>
+  apiFetch<Token>("/api/auth/login", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+
+export const getMe = () => apiFetch<User>("/api/auth/me");
+
+// ─── User Management API ──────────────────────────────────────────────────────
+
+export const getUsers = () => apiFetch<User[]>("/api/users");
+
+export const createUser = (data: { email: string; password?: string; name?: string }) =>
+  apiFetch<User>("/api/users", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+
+export const deleteUser = (id: string) =>
+  apiFetch<{ message: string }>(`/api/users/${id}`, {
+    method: "DELETE",
+  });
+
+// ─── Deletion APIs ────────────────────────────────────────────────────────────
+
+export const deleteCampaign = (id: string) =>
+  apiFetch<{ message: string }>(`/api/campaigns/${id}`, {
+    method: "DELETE",
+  });
+
+export const deleteCustomer = (id: string) =>
+  apiFetch<{ message: string }>(`/api/customers/${id}`, {
+    method: "DELETE",
   });
 

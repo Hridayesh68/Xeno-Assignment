@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Plus, Megaphone, Play, CheckCircle2, Clock, AlertCircle, Loader2 } from "lucide-react";
-import { getCampaigns, sendCampaign, Campaign } from "@/lib/api";
+import { Plus, Megaphone, Play, CheckCircle2, Clock, AlertCircle, Loader2, Trash2 } from "lucide-react";
+import { getCampaigns, sendCampaign, deleteCampaign, Campaign } from "@/lib/api";
 import { formatDate, formatPercent, CHANNEL_ICONS, STATUS_COLORS } from "@/lib/utils";
 
 function CampaignCard({ campaign, onSend }: { campaign: Campaign; onSend: (id: string) => void }) {
@@ -22,6 +22,18 @@ function CampaignCard({ campaign, onSend }: { campaign: Campaign; onSend: (id: s
       console.error(e);
     } finally {
       setSending(false);
+    }
+  };
+
+  const handleDelete = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (!confirm(`Are you sure you want to delete campaign "${campaign.name}"?`)) return;
+    try {
+      await deleteCampaign(campaign.id);
+      onSend(campaign.id);
+    } catch (err: any) {
+      console.error(err);
+      alert(err.message || "Failed to delete campaign.");
     }
   };
 
@@ -49,14 +61,24 @@ function CampaignCard({ campaign, onSend }: { campaign: Campaign; onSend: (id: s
             </div>
           </div>
         </div>
-        {campaign.status === "draft" && (
-          <button onClick={handleSend} disabled={sending}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white disabled:opacity-50 transition-all hover:opacity-90"
-            style={{ background: "linear-gradient(135deg, #7c3aed, #4f46e5)" }}>
-            {sending ? <Loader2 size={12} className="animate-spin" /> : <Play size={12} />}
-            Send
+        <div className="flex items-center gap-1.5">
+          {campaign.status === "draft" && (
+            <button onClick={handleSend} disabled={sending}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white disabled:opacity-50 transition-all hover:opacity-90"
+              style={{ background: "linear-gradient(135deg, #7c3aed, #4f46e5)" }}>
+              {sending ? <Loader2 size={12} className="animate-spin" /> : <Play size={12} />}
+              Send
+            </button>
+          )}
+          <button 
+            onClick={handleDelete}
+            className="p-1.5 rounded-lg border border-transparent text-zinc-500 hover:text-red-400 hover:bg-red-500/5 hover:border-red-500/20 transition-all shrink-0"
+            style={{ borderColor: "rgba(255,255,255,0.02)" }}
+            title="Delete campaign record"
+          >
+            <Trash2 size={14} />
           </button>
-        )}
+        </div>
       </div>
 
       {/* Stats */}

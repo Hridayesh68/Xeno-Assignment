@@ -2,9 +2,13 @@
 
 import { useState, useRef, useEffect } from "react";
 import { 
-  Send, Bot, User, Loader2, Sparkles, Database, Users, Megaphone, CheckCircle2, AlertCircle, ChevronDown, ChevronUp 
+  Send, Bot, User, Loader2, Sparkles, Database, Users, Megaphone, CheckCircle2, AlertCircle, ChevronDown, ChevronUp, Shield, Trash2
 } from "lucide-react";
 import { aiChat, ChatMessage } from "@/lib/api";
+import { useAuth } from "@/components/AuthProvider";
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
+} from "recharts";
 
 interface ExtendedMessage extends ChatMessage {
   agent_logs?: any[];
@@ -18,6 +22,7 @@ const SUGGESTIONS = [
 ];
 
 export default function ChatPage() {
+  const { user: currentUser } = useAuth();
   const [messages, setMessages] = useState<ExtendedMessage[]>([
     {
       role: "assistant",
@@ -50,7 +55,7 @@ export default function ChatPage() {
     setCurrentLogs([]);
 
     try {
-      // Keep only user/assistant messages for context limit (excluding system/tool internal logs for frontend cleanliness)
+      // Keep only user/assistant messages for context limit
       const contextMessages = updatedMessages.map(m => ({
         role: m.role,
         content: m.content,
@@ -84,6 +89,62 @@ export default function ChatPage() {
 
   const toggleLogs = (idx: number) => {
     setExpandedLogs(prev => ({ ...prev, [idx]: !prev[idx] }));
+  };
+
+  const getChartConfig = (result: any) => {
+    if (!result || !result.columns || !result.rows || result.rows.length === 0) return null;
+    
+    // Find category key (first string column)
+    let categoryKey = "";
+    const numericKeys: string[] = [];
+    
+    const sample = result.rows[0];
+    result.columns.forEach((col: string) => {
+      const val = sample[col];
+      if (typeof val === "number") {
+        numericKeys.push(col);
+      } else if (typeof val === "string" && !categoryKey) {
+        categoryKey = col;
+      }
+    });
+    
+    if (!categoryKey && result.columns.length > 0) {
+      categoryKey = result.columns[0];
+    }
+    
+    if (numericKeys.length > 0) {
+      return { categoryKey, numericKeys };
+    }
+    return null;
+  };
+
+  const renderToolResultChart = (result: any) => {
+    const config = getChartConfig(result);
+    if (!config) return null;
+    
+    const { categoryKey, numericKeys } = config;
+    const colors = ["#7c3aed", "#10b981", "#3b82f6", "#f59e0b", "#ec4899"];
+    
+    return (
+      <div className="mt-4 p-4 rounded-xl border border-zinc-800 bg-zinc-950/40" style={{ height: "240px" }}>
+        <p className="text-[10px] text-zinc-500 font-semibold uppercase tracking-wider mb-2">Visual Insight Chart</p>
+        <ResponsiveContainer width="100%" height="90%">
+          <BarChart data={result.rows}>
+            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.03)" />
+            <XAxis dataKey={categoryKey} tick={{ fill: "#71717a", fontSize: 10 }} axisLine={false} tickLine={false} />
+            <YAxis tick={{ fill: "#71717a", fontSize: 10 }} axisLine={false} tickLine={false} />
+            <Tooltip
+              contentStyle={{ background: "#1a1a26", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8 }}
+              labelStyle={{ color: "#e2e2e8", fontSize: 11 }}
+              itemStyle={{ fontSize: 11 }}
+            />
+            {numericKeys.map((key, index) => (
+              <Bar key={key} dataKey={key} fill={colors[index % colors.length]} radius={[4, 4, 0, 0]} />
+            ))}
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+    );
   };
 
   // Render database tables from the tool results
@@ -139,18 +200,24 @@ export default function ChatPage() {
   return (
     <div className="flex flex-col h-[calc(100vh-64px)] max-w-4xl mx-auto p-4 md:p-6 animate-in">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-6 border-b border-zinc-800/40 pb-4">
         <div>
           <h1 className="text-2xl md:text-3xl font-bold text-white flex items-center gap-2">
             <Sparkles className="text-violet-400" size={24} />
             Xeno Chat Copilot
           </h1>
-          <p className="text-xs md:text-sm text-zinc-500 mt-1">Ask questions, query databases, create segments, and launch campaigns in plain English.</p>
+          <p className="text-xs md:text-sm text-zinc-500 mt-1">Ask questions, manage segments, and launch campaigns in plain English.</p>
         </div>
-        <div className="badge flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold" 
-          style={{ background: "rgba(139,92,246,0.1)", color: "#a78bfa", border: "1px solid rgba(139,92,246,0.2)" }}>
-          <Bot size={14} />
-          <span>Llama 3.3 70B Active</span>
+        <div className="flex flex-col items-end gap-1.5">
+          <div className="badge flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-violet-500/10 text-violet-400 border border-violet-500/20">
+            <Bot size={14} />
+            <span>Llama & Gemini Fallback</span>
+          </div>
+          {currentUser && (
+            <p className="text-[10px] text-zinc-500">
+              Logged in as: <span className="text-violet-400 font-medium">{currentUser.name || currentUser.email}</span>
+            </p>
+          )}
         </div>
       </div>
 
@@ -179,7 +246,18 @@ export default function ChatPage() {
                   <div key={logIdx}>
                     {log.tool_calls.map((tc: any, tcIdx: number) => (
                       <div key={tcIdx}>
-                        {tc.name === "execute_database_query" && tc.result && renderToolResultTable(tc.result)}
+                        {tc.name === "execute_database_query" && tc.result && (
+                          <>
+                            {renderToolResultTable(tc.result)}
+                            {renderToolResultChart(tc.result)}
+                          </>
+                        )}
+                        {tc.name !== "execute_database_query" && tc.result && (
+                          <div className="p-3 bg-zinc-950/60 border border-zinc-800 rounded-xl text-xs text-zinc-300 mt-2 flex items-center gap-2">
+                            {tc.result.error ? <AlertCircle size={14} className="text-red-400" /> : <CheckCircle2 size={14} className="text-emerald-400" />}
+                            <span>{tc.result.error || tc.result.message || "Action executed successfully"}</span>
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -201,19 +279,30 @@ export default function ChatPage() {
                           <p className="font-semibold text-zinc-400">Step {log.step}</p>
                           {log.tool_calls.map((tc: any, tcIdx: number) => (
                             <div key={tcIdx} className="mt-1 flex flex-col gap-0.5">
-                              <span className="flex items-center gap-1.5 font-medium text-violet-400">
-                                {tc.name === "execute_database_query" && <Database size={10} />}
-                                {tc.name === "create_audience_segment" && <Users size={10} />}
-                                {tc.name === "draft_and_send_campaign" && <Megaphone size={10} />}
+                              <span className="flex items-center gap-1.5 font-medium text-violet-400 text-xs">
+                                {tc.name === "execute_database_query" && <Database size={12} />}
+                                {tc.name === "create_audience_segment" && <Users size={12} />}
+                                {tc.name === "draft_and_send_campaign" && <Megaphone size={12} />}
+                                {tc.name === "create_customer" && <User size={12} />}
+                                {tc.name === "delete_customer" && <Trash2 size={12} />}
+                                {tc.name === "create_user" && <Shield size={12} />}
+                                {tc.name === "delete_user" && <Trash2 size={12} />}
+                                {tc.name === "delete_campaign" && <Trash2 size={12} />}
                                 Executed: {tc.name}
                               </span>
                               <pre className="p-2 bg-black/40 border border-zinc-900 rounded-lg text-[10px] text-zinc-600 font-mono mt-0.5 overflow-x-auto max-w-full">
                                 {JSON.stringify(tc.arguments, null, 2)}
                               </pre>
                               {tc.result && tc.result.success && (
-                                <span className="text-emerald-400 flex items-center gap-1 mt-0.5 font-medium">
+                                <span className="text-emerald-400 flex items-center gap-1 mt-0.5 font-medium text-[10px]">
                                   <CheckCircle2 size={10} />
                                   Success: {tc.result.message || "Executed"}
+                                </span>
+                              )}
+                              {tc.result && tc.result.error && (
+                                <span className="text-red-400 flex items-center gap-1 mt-0.5 font-medium text-[10px]">
+                                  <AlertCircle size={10} />
+                                  Error: {tc.result.error}
                                 </span>
                               )}
                             </div>

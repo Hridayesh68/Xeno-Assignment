@@ -29,10 +29,38 @@ models.Base.metadata.create_all(bind=engine)
 
 settings = get_settings()
 
+from fastapi import Request
+import auth_utils
+
+async def get_current_user_dependency(request: Request, db: Session = Depends(get_db)):
+    path = request.url.path
+    # Exempt public endpoints from authentication
+    if path in ["/health", "/api/receipt", "/api/auth/login", "/api/auth/signup"] or path.startswith("/docs") or path.startswith("/openapi.json"):
+        return None
+        
+    authorization = request.headers.get("Authorization")
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Authorization header missing or invalid")
+        
+    token = authorization.split(" ")[1]
+    payload = auth_utils.decode_access_token(token)
+    if not payload:
+        raise HTTPException(status_code=401, detail="Invalid token or token expired")
+        
+    email = payload.get("sub")
+    if not email:
+        raise HTTPException(status_code=401, detail="Invalid token payload")
+        
+    user = db.query(models.User).filter(models.User.email == email).first()
+    if not user:
+        raise HTTPException(status_code=401, detail="User not found")
+    return user
+
 app = FastAPI(
     title="Xeno CRM API",
     description="AI-native Mini CRM for D2C brands",
-    version="1.0.0"
+    version="1.0.0",
+    dependencies=[Depends(get_current_user_dependency)]
 )
 
 app.add_middleware(
@@ -365,6 +393,109 @@ def handle_receipt(data: schemas.ReceiptCallback, db: Session = Depends(get_db))
     return {"status": "ok", "communication_id": data.communication_id, "event": data.event}
 
 
+# ─── Auth Endpoints ─────────────────────────────────────────────────────────
+
+@app.post("/api/auth/signup", response_model=schemas.UserOut, status_code=201)
+def auth_signup(data: schemas.UserSignup, db: Session = Depends(get_db)):
+    existing = db.query(models.User).filter(models.User.email == data.email).first()
+    if existing:
+        raise HTTPException(status_code=409, detail="User with this email already exists")
+    
+    user = models.User(
+        email=data.email,
+        name=data.name,
+        hashed_password=auth_utils.hash_password(data.password),
+        is_active=True
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return user
+
+@app.post("/api/auth/login", response_model=schemas.Token)
+def auth_login(data: schemas.UserLogin, db: Session = Depends(get_db)):
+    user = db.query(models.User).filter(models.User.email == data.email).first()
+    if not user or not auth_utils.verify_password(user.hashed_password, data.password):
+        raise HTTPException(status_code=401, detail="Invalid email or password")
+    
+    access_token = auth_utils.create_access_token(data={"sub": user.email, "user_id": user.id})
+    return {"access_token": access_token, "token_type": "bearer"}
+
+@app.get("/api/auth/me", response_model=schemas.UserOut)
+def auth_me(request: Request, db: Session = Depends(get_db)):
+    authorization = request.headers.get("Authorization")
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Authorization header missing or invalid")
+    token = authorization.split(" ")[1]
+    payload = auth_utils.decode_access_token(token)
+    if not payload:
+        raise HTTPException(status_code=401, detail="Invalid token or token expired")
+    user = db.query(models.User).filter(models.User.email == payload.get("sub")).first()
+    if not user:
+        raise HTTPException(status_code=401, detail="User not found")
+    return user
+
+
+# ─── User Management Endpoints ────────────────────────────────────────────────
+
+@app.get("/api/users", response_model=List[schemas.UserOut])
+def list_users(db: Session = Depends(get_db)):
+    return db.query(models.User).order_by(desc(models.User.created_at)).all()
+
+@app.post("/api/users", response_model=schemas.UserOut, status_code=201)
+def create_new_user(data: schemas.UserSignup, db: Session = Depends(get_db)):
+    existing = db.query(models.User).filter(models.User.email == data.email).first()
+    if existing:
+        raise HTTPException(status_code=409, detail="User with this email already exists")
+    
+    user = models.User(
+        email=data.email,
+        name=data.name,
+        hashed_password=auth_utils.hash_password(data.password),
+        is_active=True
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return user
+
+@app.delete("/api/users/{user_id}")
+def delete_user_by_id(user_id: str, db: Session = Depends(get_db)):
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    db.delete(user)
+    db.commit()
+    return {"message": "User successfully deleted"}
+
+
+# ─── Deletion Endpoints ────────────────────────────────────────────────────────
+
+@app.delete("/api/campaigns/{campaign_id}")
+def delete_campaign_by_id(campaign_id: str, db: Session = Depends(get_db)):
+    campaign = db.query(models.Campaign).filter(models.Campaign.id == campaign_id).first()
+    if not campaign:
+        raise HTTPException(status_code=404, detail="Campaign not found")
+    
+    if campaign.status == models.CampaignStatus.RUNNING:
+        campaign.status = models.CampaignStatus.STOPPED
+        db.commit()
+        
+    db.delete(campaign)
+    db.commit()
+    return {"message": "Campaign successfully deleted"}
+
+@app.delete("/api/customers/{customer_id}")
+def delete_customer_by_id(customer_id: str, db: Session = Depends(get_db)):
+    customer = db.query(models.Customer).filter(models.Customer.id == customer_id).first()
+    if not customer:
+        raise HTTPException(status_code=404, detail="Customer not found")
+    
+    db.delete(customer)
+    db.commit()
+    return {"message": "Customer successfully deleted"}
+
+
 # ─── AI Endpoints ─────────────────────────────────────────────────────────────
 
 @app.post("/api/ai/segment", response_model=schemas.NLSegmentResponse)
@@ -423,7 +554,17 @@ def ai_suggest_segments():
 
 # ─── Chat Agent Endpoints ───────────────────────────────────────────────────
 
-from agent_tools import AGENT_TOOLS_SCHEMA, execute_database_query, create_audience_segment, draft_and_send_campaign
+from agent_tools import (
+    AGENT_TOOLS_SCHEMA,
+    execute_database_query,
+    create_audience_segment,
+    draft_and_send_campaign,
+    create_customer,
+    delete_customer,
+    create_user,
+    delete_user,
+    delete_campaign
+)
 
 class ChatMessage(BaseModel):
     role: str
@@ -446,10 +587,13 @@ Database Schema Overview:
 5. "communications": Message dispatch logs. id, campaign_id (FK), customer_id (FK), channel, message, status (pending/sent/delivered/failed/opened/clicked), sent_at, delivered_at, opened_at, clicked_at, failed_at.
 
 Capabilities & Guidelines:
-- You have tools to query the database, create segments, and send campaigns.
+- You have tools to query the database, create segments, send campaigns, and perform CRUD operations on customers, users, and campaigns.
 - Use `execute_database_query` to fetch statistics, counts, lists, or metrics. Always write valid read-only PostgreSQL queries. If queried data is requested, always render it clearly in your response.
 - Use `create_audience_segment` when asked to create segments, VIP groups, or custom target lists.
 - Use `draft_and_send_campaign` to launch whatsapp/sms/email campaigns.
+- Use `create_customer` and `delete_customer` to add or remove D2C shoppers.
+- Use `create_user` and `delete_user` to manage marketer/user accounts.
+- Use `delete_campaign` to delete a campaign (and stop it if running).
 - When executing SQL, make sure to query JSON arrays (like tags) correctly if needed, or query standard attributes. In SQLite, tags is a JSON array string. In Postgres/Supabase, it is stored as JSON. Try to write compatible queries or standard select queries.
 - Be concise, helpful, and professional. Always verify success and summarize tool execution results to the user.
 """
@@ -460,12 +604,7 @@ async def ai_chat(
     background_tasks: BackgroundTasks,
     db: Session = Depends(get_db)
 ):
-    if not settings.groq_api_key:
-        raise HTTPException(status_code=503, detail="Groq API key not configured")
-        
     from openai import OpenAI
-    client = OpenAI(api_key=settings.groq_api_key, base_url="https://api.groq.com/openai/v1")
-    model_name = settings.groq_model or "llama-3.3-70b-versatile"
     
     api_messages = [{"role": "system", "content": AGENT_SYSTEM_PROMPT}]
     for msg in data.messages:
@@ -482,18 +621,46 @@ async def ai_chat(
     max_iterations = 5
     
     for _ in range(max_iterations):
-        try:
-            response = client.chat.completions.create(
-                model=model_name,
-                messages=api_messages,
-                tools=AGENT_TOOLS_SCHEMA,
-                tool_choice="auto",
-                temperature=0.3
-            )
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Groq API Error: {str(e)}")
-            
-        choice = response.choices[0]
+        choice = None
+        # 1. Try Groq
+        if settings.groq_api_key:
+            try:
+                print("Chat Agent: Trying Groq API...")
+                groq_client = OpenAI(api_key=settings.groq_api_key, base_url="https://api.groq.com/openai/v1")
+                model_name = settings.groq_model or "llama-3.3-70b-versatile"
+                response = groq_client.chat.completions.create(
+                    model=model_name,
+                    messages=api_messages,
+                    tools=AGENT_TOOLS_SCHEMA,
+                    tool_choice="auto",
+                    temperature=0.3
+                )
+                choice = response.choices[0]
+                print("Chat Agent: Groq query successful.")
+            except Exception as e:
+                print(f"Chat Agent: Groq API call failed: {e}. Trying Gemini fallback...")
+
+        # 2. Try Gemini (Fallback)
+        if not choice:
+            try:
+                print("Chat Agent: Trying Gemini API fallback...")
+                gemini_client = OpenAI(
+                    api_key=settings.gemini_api_key,
+                    base_url="https://generativelanguage.googleapis.com/v1beta/openai/"
+                )
+                response = gemini_client.chat.completions.create(
+                    model="gemini-2.5-flash",
+                    messages=api_messages,
+                    tools=AGENT_TOOLS_SCHEMA,
+                    tool_choice="auto",
+                    temperature=0.3
+                )
+                choice = response.choices[0]
+                print("Chat Agent: Gemini query successful.")
+            except Exception as e:
+                print(f"Chat Agent: Gemini query failed: {e}")
+                raise HTTPException(status_code=500, detail=f"All Chat LLM services failed: {str(e)}")
+                
         msg = choice.message
         
         if msg.tool_calls:
@@ -541,6 +708,37 @@ async def ai_chat(
                             message_template=func_args.get("message_template"),
                             db=db,
                             background_tasks=background_tasks
+                        )
+                    elif func_name == "create_customer":
+                        res = create_customer(
+                            name=func_args.get("name"),
+                            email=func_args.get("email"),
+                            phone=func_args.get("phone"),
+                            city=func_args.get("city"),
+                            tags=func_args.get("tags", []),
+                            db=db
+                        )
+                    elif func_name == "delete_customer":
+                        res = delete_customer(
+                            customer_id=func_args.get("customer_id"),
+                            db=db
+                        )
+                    elif func_name == "create_user":
+                        res = create_user(
+                            name=func_args.get("name"),
+                            email=func_args.get("email"),
+                            password=func_args.get("password"),
+                            db=db
+                        )
+                    elif func_name == "delete_user":
+                        res = delete_user(
+                            user_id=func_args.get("user_id"),
+                            db=db
+                        )
+                    elif func_name == "delete_campaign":
+                        res = delete_campaign(
+                            campaign_id=func_args.get("campaign_id"),
+                            db=db
                         )
                     else:
                         res = {"error": f"Tool '{func_name}' is not supported."}

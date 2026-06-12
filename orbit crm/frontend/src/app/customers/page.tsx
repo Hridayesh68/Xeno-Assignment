@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { Search, Users, MapPin, ShoppingBag, IndianRupee, Tag } from "lucide-react";
-import { getCustomers, Customer } from "@/lib/api";
+import { Search, Users, MapPin, ShoppingBag, IndianRupee, Tag, Trash2 } from "lucide-react";
+import { getCustomers, deleteCustomer, Customer } from "@/lib/api";
 import { formatCurrency, formatDate, daysAgo, cn } from "@/lib/utils";
 
 export default function CustomersPage() {
@@ -32,6 +32,17 @@ export default function CustomersPage() {
   }, [search, city, minSpend]);
 
   useEffect(() => { load(); }, [load]);
+
+  const handleDelete = async (id: string, name: string) => {
+    if (!confirm(`Are you sure you want to delete customer "${name}" and all associated orders/communications?`)) return;
+    try {
+      await deleteCustomer(id);
+      await load();
+    } catch (e: any) {
+      console.error(e);
+      alert(e.message || "Failed to delete customer.");
+    }
+  };
 
   const CITIES = ["Mumbai", "Delhi", "Bangalore", "Chennai", "Hyderabad", "Pune", "Kolkata"];
 
@@ -88,8 +99,8 @@ export default function CustomersPage() {
         <table className="w-full">
           <thead>
             <tr style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
-              {["Customer", "City", "Orders", "Total Spend", "Last Order", "Tags"].map(h => (
-                <th key={h} className="text-left px-5 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wider">
+              {["Customer", "City", "Orders", "Total Spend", "Last Order", "Tags", "Actions"].map(h => (
+                <th key={h} className={`px-5 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wider ${h === "Actions" ? "text-right" : "text-left"}`}>
                   {h}
                 </th>
               ))}
@@ -99,7 +110,7 @@ export default function CustomersPage() {
             {loading ? (
               Array(8).fill(0).map((_, i) => (
                 <tr key={i} style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
-                  {Array(6).fill(0).map((_, j) => (
+                  {Array(7).fill(0).map((_, j) => (
                     <td key={j} className="px-5 py-4">
                       <div className="h-4 shimmer rounded" />
                     </td>
@@ -108,7 +119,7 @@ export default function CustomersPage() {
               ))
             ) : customers.length === 0 ? (
               <tr>
-                <td colSpan={6} className="text-center py-16 text-zinc-500">
+                <td colSpan={7} className="text-center py-16 text-zinc-500">
                   <Users size={40} className="mx-auto mb-3 text-zinc-700" />
                   No customers found
                 </td>
@@ -159,6 +170,15 @@ export default function CustomersPage() {
                         </span>
                       ))}
                     </div>
+                  </td>
+                  <td className="px-5 py-4 text-right">
+                    <button
+                      onClick={() => handleDelete(c.id, c.name)}
+                      className="p-1.5 rounded-lg border border-transparent text-zinc-500 hover:text-red-400 hover:bg-red-500/5 hover:border-red-500/20 transition-all"
+                      title="Delete shopper base profile"
+                    >
+                      <Trash2 size={15} />
+                    </button>
                   </td>
                 </tr>
               ))

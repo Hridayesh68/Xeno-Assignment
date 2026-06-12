@@ -217,3 +217,33 @@ class DashboardStats(BaseModel):
     avg_delivery_rate: float
     avg_open_rate: float
     recent_campaigns: List[CampaignOut]
+
+
+# ─── Auth Schemas ────────────────────────────────────────────────────────────
+
+class UserSignup(BaseModel):
+    email: EmailStr
+    password: str
+    name: Optional[str] = None
+
+
+class UserLogin(BaseModel):
+    email: EmailStr
+    password: str
+
+
+class UserOut(BaseModel):
+    id: str
+    email: EmailStr
+    name: Optional[str]
+    is_active: bool
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str
+

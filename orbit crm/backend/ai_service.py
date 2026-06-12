@@ -13,15 +13,77 @@ from schemas import FilterRule, NLSegmentResponse, MessageDraftResponse, Campaig
 
 settings = get_settings()
 
-if settings.groq_api_key:
-    client = OpenAI(
-        api_key=settings.groq_api_key,
-        base_url="https://api.groq.com/openai/v1"
-    )
-    model_name = settings.groq_model or "llama-3.3-70b-versatile"
-else:
-    client = OpenAI(api_key=settings.openai_api_key) if settings.openai_api_key else None
-    model_name = "gpt-4o"
+FALLBACK_GEMINI_KEY = settings.gemini_api_key
+
+def call_llm(messages: List[dict], response_format: dict = None, temperature: float = 0.3) -> str:
+    """
+    Call LLM using Groq first. Fallback to Gemini if Groq fails or is rate limited.
+    """
+    # 1. Try Groq
+    if settings.groq_api_key:
+        try:
+            print("Attempting to call Groq API...")
+            groq_client = OpenAI(
+                api_key=settings.groq_api_key,
+                base_url="https://api.groq.com/openai/v1"
+            )
+            model = settings.groq_model or "llama-3.3-70b-versatile"
+            
+            kwargs = {
+                "model": model,
+                "messages": messages,
+                "temperature": temperature
+            }
+            if response_format:
+                kwargs["response_format"] = response_format
+                
+            response = groq_client.chat.completions.create(**kwargs)
+            print("Groq call successful.")
+            return response.choices[0].message.content
+        except Exception as e:
+            print(f"Groq API call failed: {e}. Falling back to Gemini...")
+
+    # 2. Try Gemini (Fallback)
+    try:
+        print("Attempting to call Gemini API fallback...")
+        gemini_client = OpenAI(
+            api_key=FALLBACK_GEMINI_KEY,
+            base_url="https://generativelanguage.googleapis.com/v1beta/openai/"
+        )
+        model = "gemini-2.5-flash"
+        kwargs = {
+            "model": model,
+            "messages": messages,
+            "temperature": temperature
+        }
+        if response_format:
+            kwargs["response_format"] = response_format
+            
+        response = gemini_client.chat.completions.create(**kwargs)
+        print("Gemini fallback call successful.")
+        return response.choices[0].message.content
+    except Exception as e:
+        print(f"Gemini fallback API call failed: {e}")
+
+    # 3. Try standard OpenAI if key is present
+    if settings.openai_api_key:
+        try:
+            print("Attempting to call OpenAI API...")
+            openai_client = OpenAI(api_key=settings.openai_api_key)
+            kwargs = {
+                "model": "gpt-4o",
+                "messages": messages,
+                "temperature": temperature
+            }
+            if response_format:
+                kwargs["response_format"] = response_format
+            response = openai_client.chat.completions.create(**kwargs)
+            return response.choices[0].message.content
+        except Exception as e:
+            print(f"OpenAI call failed: {e}")
+
+    raise RuntimeError("All LLM providers failed or are unconfigured.")
+
 
 SYSTEM_SEGMENT_PROMPT = """
 You are an AI assistant for a D2C brand CRM system. 
@@ -102,13 +164,9 @@ def _fallback_filter_rules(query: str) -> NLSegmentResponse:
 
 
 def nl_to_segment_filters(query: str) -> NLSegmentResponse:
-    """Convert natural language to segment filter rules using GPT-4o."""
-    if not client:
-        return _fallback_filter_rules(query)
-
+    """Convert natural language to segment filter rules using LLM."""
     try:
-        response = client.chat.completions.create(
-            model=model_name,
+        content = call_llm(
             messages=[
                 {"role": "system", "content": SYSTEM_SEGMENT_PROMPT},
                 {"role": "user", "content": f"Create a segment for: {query}"}
@@ -116,7 +174,7 @@ def nl_to_segment_filters(query: str) -> NLSegmentResponse:
             response_format={"type": "json_object"},
             temperature=0.3,
         )
-        data = json.loads(response.choices[0].message.content)
+        data = json.loads(content)
         rules = [FilterRule(**r) for r in data["filter_rules"]]
         return NLSegmentResponse(
             filter_rules=rules,
@@ -124,7 +182,7 @@ def nl_to_segment_filters(query: str) -> NLSegmentResponse:
             explanation=data.get("explanation", "")
         )
     except Exception as e:
-        print(f"OpenAI error in nl_to_segment_filters: {e}")
+        print(f"LLM error in nl_to_segment_filters: {e}")
         return _fallback_filter_rules(query)
 
 
@@ -141,12 +199,6 @@ def draft_campaign_messages(
         f"{{{{name}}}}, it's been a while! Come back and see what's new at {brand_name} 🛍️"
     ]
 
-    if not client:
-        return MessageDraftResponse(
-            variants=fallback_msgs,
-            reasoning="Default messages (AI unavailable)"
-        )
-
     try:
         prompt = f"""
 Channel: {channel}
@@ -156,8 +208,7 @@ Brand Name: {brand_name}
 
 Write 3 distinct message variants for this campaign.
 """
-        response = client.chat.completions.create(
-            model=model_name,
+        content = call_llm(
             messages=[
                 {"role": "system", "content": SYSTEM_MESSAGE_PROMPT},
                 {"role": "user", "content": prompt}
@@ -165,13 +216,13 @@ Write 3 distinct message variants for this campaign.
             response_format={"type": "json_object"},
             temperature=0.8,
         )
-        data = json.loads(response.choices[0].message.content)
+        data = json.loads(content)
         return MessageDraftResponse(
             variants=data.get("variants", fallback_msgs),
             reasoning=data.get("reasoning", "")
         )
     except Exception as e:
-        print(f"OpenAI error in draft_campaign_messages: {e}")
+        print(f"LLM error in draft_campaign_messages: {e}")
         return MessageDraftResponse(variants=fallback_msgs, reasoning="Fallback messages")
 
 
@@ -196,9 +247,6 @@ def generate_campaign_insight(
         ]
     )
 
-    if not client:
-        return fallback
-
     try:
         prompt = f"""
 Campaign: {campaign_name}
@@ -214,8 +262,7 @@ Benchmark averages: delivery={avg_delivery_rate:.1%}, open={avg_open_rate:.1%}
 
 Provide insights for this marketing campaign.
 """
-        response = client.chat.completions.create(
-            model=model_name,
+        content = call_llm(
             messages=[
                 {"role": "system", "content": SYSTEM_INSIGHT_PROMPT},
                 {"role": "user", "content": prompt}
@@ -223,14 +270,14 @@ Provide insights for this marketing campaign.
             response_format={"type": "json_object"},
             temperature=0.5,
         )
-        data = json.loads(response.choices[0].message.content)
+        data = json.loads(content)
         return CampaignInsightResponse(
             summary=data.get("summary", ""),
             highlights=data.get("highlights", []),
             suggestions=data.get("suggestions", [])
         )
     except Exception as e:
-        print(f"OpenAI error in generate_campaign_insight: {e}")
+        print(f"LLM error in generate_campaign_insight: {e}")
         return fallback
 
 

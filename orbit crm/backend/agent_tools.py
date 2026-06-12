@@ -131,6 +131,130 @@ def draft_and_send_campaign(
         db.rollback()
         return {"error": str(e)}
 
+def create_customer(name: str, email: str, phone: str = None, city: str = None, tags: List[str] = [], db: Session = None) -> Dict[str, Any]:
+    """
+    Create a new customer profile.
+    """
+    try:
+        existing = db.query(models.Customer).filter(models.Customer.email == email).first()
+        if existing:
+            return {"error": f"Customer with email '{email}' already exists."}
+            
+        customer = models.Customer(
+            name=name,
+            email=email,
+            phone=phone,
+            city=city,
+            tags=tags or []
+        )
+        db.add(customer)
+        db.commit()
+        db.refresh(customer)
+        return {
+            "success": True,
+            "customer_id": customer.id,
+            "name": customer.name,
+            "email": customer.email,
+            "message": f"Customer '{name}' successfully created."
+        }
+    except Exception as e:
+        db.rollback()
+        return {"error": str(e)}
+
+def delete_customer(customer_id: str, db: Session) -> Dict[str, Any]:
+    """
+    Delete a customer profile and all associated data.
+    """
+    try:
+        customer = db.query(models.Customer).filter(models.Customer.id == customer_id).first()
+        if not customer:
+            return {"error": f"Customer with ID '{customer_id}' not found."}
+            
+        db.delete(customer)
+        db.commit()
+        return {
+            "success": True,
+            "customer_id": customer_id,
+            "message": f"Customer '{customer.name}' and all their orders/communications successfully deleted."
+        }
+    except Exception as e:
+        db.rollback()
+        return {"error": str(e)}
+
+def create_user(name: str, email: str, password: str, db: Session) -> Dict[str, Any]:
+    """
+    Create/Register a new user (marketer).
+    """
+    try:
+        from auth_utils import hash_password
+        existing = db.query(models.User).filter(models.User.email == email).first()
+        if existing:
+            return {"error": f"User with email '{email}' already exists."}
+            
+        user = models.User(
+            name=name,
+            email=email,
+            hashed_password=hash_password(password),
+            is_active=True
+        )
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+        return {
+            "success": True,
+            "user_id": user.id,
+            "email": user.email,
+            "message": f"User '{name}' ({email}) successfully created."
+        }
+    except Exception as e:
+        db.rollback()
+        return {"error": str(e)}
+
+def delete_user(user_id: str, db: Session) -> Dict[str, Any]:
+    """
+    Delete a user profile.
+    """
+    try:
+        user = db.query(models.User).filter(models.User.id == user_id).first()
+        if not user:
+            return {"error": f"User with ID '{user_id}' not found."}
+            
+        db.delete(user)
+        db.commit()
+        return {
+            "success": True,
+            "user_id": user_id,
+            "message": f"User '{user.name}' successfully deleted."
+        }
+    except Exception as e:
+        db.rollback()
+        return {"error": str(e)}
+
+def delete_campaign(campaign_id: str, db: Session) -> Dict[str, Any]:
+    """
+    Delete a campaign and stop dispatch if running.
+    """
+    try:
+        campaign = db.query(models.Campaign).filter(models.Campaign.id == campaign_id).first()
+        if not campaign:
+            return {"error": f"Campaign with ID '{campaign_id}' not found."}
+            
+        # Stop dispatch if running (can just update status to STOPPED first, then delete)
+        if campaign.status == models.CampaignStatus.RUNNING:
+            campaign.status = models.CampaignStatus.STOPPED
+            db.commit()
+            
+        db.delete(campaign)
+        db.commit()
+        return {
+            "success": True,
+            "campaign_id": campaign_id,
+            "message": f"Campaign '{campaign.name}' successfully deleted."
+        }
+    except Exception as e:
+        db.rollback()
+        return {"error": str(e)}
+
 # Define tools schema for LLM tool calling (Groq / OpenAI compatible format)
 AGENT_TOOLS_SCHEMA = [
     {
@@ -219,6 +343,86 @@ AGENT_TOOLS_SCHEMA = [
                     }
                 },
                 "required": ["name", "segment_id", "channel", "message_template"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "create_customer",
+            "description": "Create a new D2C customer profile.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "name": {"type": "string", "description": "Customer full name."},
+                    "email": {"type": "string", "description": "Customer unique email address."},
+                    "phone": {"type": "string", "description": "Optional customer phone number."},
+                    "city": {"type": "string", "description": "Optional city name."},
+                    "tags": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "Optional list of tags."
+                    }
+                },
+                "required": ["name", "email"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "delete_customer",
+            "description": "Delete a customer profile and all their orders/communications.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "customer_id": {"type": "string", "description": "UUID string of the customer to delete."}
+                },
+                "required": ["customer_id"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "create_user",
+            "description": "Create a new marketer/user account.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "name": {"type": "string", "description": "Full name of the user."},
+                    "email": {"type": "string", "description": "User email address."},
+                    "password": {"type": "string", "description": "User password."}
+                },
+                "required": ["name", "email", "password"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "delete_user",
+            "description": "Delete a marketer/user account.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "user_id": {"type": "string", "description": "UUID string of the user to delete."}
+                },
+                "required": ["user_id"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "delete_campaign",
+            "description": "Delete a campaign and stop its dispatch.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "campaign_id": {"type": "string", "description": "UUID string of the campaign to delete."}
+                },
+                "required": ["campaign_id"]
             }
         }
     }
