@@ -70,22 +70,27 @@ jobs:
             # Navigate to the directory containing docker-compose.yml
             cd 'orbit crm'
             
-            # Re-build and re-launch containers gracefully
-            docker compose down
-            docker compose up --build -d
+            # Ensure .env file exists for docker-compose to find
+            if [ ! -f .env ]; then
+              cp .env.example .env
+            fi
+
+            # Re-build and re-launch containers gracefully using sudo to prevent permission denied errors
+            sudo docker compose down
+            sudo docker compose up --build -d
             
             # Wait for DB and container to be up
             echo 'Waiting for containers to start...'
             sleep 10
             
             # Execute database migrations automatically inside the container
-            docker compose exec -T crm-api alembic upgrade head
+            sudo docker compose exec -T crm-api alembic upgrade head
             
             # Run the seed script to seed the data if the database is fresh
-            docker compose exec -T crm-api python seed.py
+            sudo docker compose exec -T crm-api python seed.py
             
             # Verify container health status
-            docker compose ps
+            sudo docker compose ps
           "
 
   deploy-frontend:
