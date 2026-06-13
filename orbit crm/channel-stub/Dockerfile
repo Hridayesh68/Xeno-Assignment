@@ -1,5 +1,8 @@
 # Stage 1: Build the virtual environment using uv
-FROM astral-sh/uv:0.7.10-python3.12-slim AS builder
+FROM python:3.12-slim AS builder
+
+# Copy uv from the official image
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
 WORKDIR /app
 

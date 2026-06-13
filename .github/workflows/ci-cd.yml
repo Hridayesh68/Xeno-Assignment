@@ -22,6 +22,7 @@ jobs:
         with:
           version: "latest"
           enable-cache: true
+          cache-dependency-glob: "**/requirements.txt"
 
       - name: Set up Python 3.12
         run: uv python install 3.12
@@ -37,12 +38,14 @@ jobs:
           cd "orbit crm"
           docker build -t crm-api:test ./backend
           docker build -t channel-service:test ./channel-stub
+          docker build -t crm-frontend:test ./frontend
 
-  deploy:
-    name: Deploy to AWS EC2
+  deploy-backend:
+    name: Deploy Backend to AWS EC2
     needs: lint-and-test
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    environment: ssh workflow docker backend
 
     steps:
       - name: Checkout Code
@@ -79,3 +82,38 @@ jobs:
             # Verify container health status
             docker compose ps
           "
+
+  deploy-frontend:
+    name: Deploy Frontend to Vercel
+    needs: lint-and-test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    environment: Production
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Install Vercel CLI
+        run: npm install --global vercel@latest
+
+      - name: Pull Vercel Environment Information
+        run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+        working-directory: './orbit crm/frontend'
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+      - name: Build Project Artifacts
+        run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
+        working-directory: './orbit crm/frontend'
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+      - name: Deploy Project Artifacts to Vercel
+        run: vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
+        working-directory: './orbit crm/frontend'
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
