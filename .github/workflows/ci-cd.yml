@@ -41,25 +41,7 @@ jobs:
           docker build -t channel-service:test ./channel-stub
           docker build -t crm-frontend:test ./frontend
 
-      - name: Log in to Docker Hub
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Build and Push Docker Images to Docker Hub
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-        run: |
-          cd "orbit crm"
-          
-          # Build and Push Backend
-          docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/crm-api:latest ./backend
-          docker push ${{ secrets.DOCKERHUB_USERNAME }}/crm-api:latest
-          
-          # Build and Push Channel Simulator
-          docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/channel-service:latest ./channel-stub
-          docker push ${{ secrets.DOCKERHUB_USERNAME }}/channel-service:latest
 
   deploy-backend:
     name: Deploy Backend to AWS EC2
@@ -71,6 +53,24 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and Push Docker Images to Docker Hub
+        run: |
+          cd "orbit crm"
+          
+          # Build and Push Backend
+          docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/crm-api:latest ./backend
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/crm-api:latest
+          
+          # Build and Push Channel Simulator
+          docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/channel-service:latest ./channel-stub
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/channel-service:latest
 
       - name: Setup SSH Keys for AWS EC2 Connection
         env:
