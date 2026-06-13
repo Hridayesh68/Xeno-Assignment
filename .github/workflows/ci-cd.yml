@@ -105,27 +105,27 @@ jobs:
             echo 'DOCKERHUB_USERNAME=${{ secrets.DOCKERHUB_USERNAME }}' >> .env
 
             # Log in to Docker Hub on the EC2 host
-            echo '${{ secrets.DOCKERHUB_TOKEN }}' | sudo docker login -u '${{ secrets.DOCKERHUB_USERNAME }}' --password-stdin
+            echo '${{ secrets.DOCKERHUB_TOKEN }}' | docker login -u '${{ secrets.DOCKERHUB_USERNAME }}' --password-stdin
 
             # Pull latest pre-built images from Docker Hub
-            sudo docker compose pull
+            docker compose pull
 
             # Re-launch containers gracefully using the pulled images
-            sudo docker compose down
-            sudo docker compose up -d
+            docker compose down
+            docker compose up -d
             
             # Wait for DB and container to be up
             echo 'Waiting for containers to start...'
             sleep 10
             
             # Execute database migrations automatically inside the container
-            sudo docker compose exec -T crm-api alembic upgrade head
+            docker compose exec -T crm-api alembic upgrade head
             
             # Run the seed script to seed the data if the database is fresh
-            sudo docker compose exec -T crm-api python seed.py
+            docker compose exec -T crm-api python seed.py
             
             # Verify container health status
-            sudo docker compose ps
+            docker compose ps
           "
 
   deploy-frontend:
