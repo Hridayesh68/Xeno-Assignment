@@ -110,9 +110,9 @@ jobs:
             # Pull latest pre-built images from Docker Hub
             docker compose pull
 
-            # Re-launch containers gracefully using the pulled images
-            docker compose down
-            docker compose up -d
+            # Re-launch containers gracefully using the pulled images, cleaning up nginx
+            docker compose down --remove-orphans
+            docker compose up -d --remove-orphans
             
             # Wait for DB and container to be up
             echo 'Waiting for containers to start...'
