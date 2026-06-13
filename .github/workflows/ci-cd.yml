@@ -8,10 +8,6 @@ on:
     branches:
       - main
 
-permissions:
-  contents: read
-  packages: write
-
 jobs:
   lint-and-test:
     name: Lint, Test, and Build Verify
@@ -45,29 +41,25 @@ jobs:
           docker build -t channel-service:test ./channel-stub
           docker build -t crm-frontend:test ./frontend
 
-      - name: Log in to GitHub Container Registry (GHCR)
+      - name: Log in to Docker Hub
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         uses: docker/login-action@v3
         with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Build and Push Docker Images to GHCR
+      - name: Build and Push Docker Images to Docker Hub
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         run: |
           cd "orbit crm"
           
-          # Convert repository name to lowercase
-          REPO_NAME=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
-          
           # Build and Push Backend
-          docker build -t ghcr.io/${REPO_NAME}/crm-api:latest ./backend
-          docker push ghcr.io/${REPO_NAME}/crm-api:latest
+          docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/crm-api:latest ./backend
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/crm-api:latest
           
           # Build and Push Channel Simulator
-          docker build -t ghcr.io/${REPO_NAME}/channel-service:latest ./channel-stub
-          docker push ghcr.io/${REPO_NAME}/channel-service:latest
+          docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/channel-service:latest ./channel-stub
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/channel-service:latest
 
   deploy-backend:
     name: Deploy Backend to AWS EC2
@@ -110,14 +102,12 @@ jobs:
             echo 'CRM_BASE_URL=http://crm-api:8000' >> .env
             echo 'CRM_RECEIPT_URL=http://crm-api:8000/api/receipt' >> .env
             echo 'ENVIRONMENT=production' >> .env
+            echo 'DOCKERHUB_USERNAME=${{ secrets.DOCKERHUB_USERNAME }}' >> .env
 
-            # Convert repository name to lowercase
-            REPO_NAME=\$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')
+            # Log in to Docker Hub on the EC2 host
+            echo '${{ secrets.DOCKERHUB_TOKEN }}' | sudo docker login -u '${{ secrets.DOCKERHUB_USERNAME }}' --password-stdin
 
-            # Log in to GHCR on the EC2 host to pull packages
-            echo '${{ secrets.GITHUB_TOKEN }}' | sudo docker login ghcr.io -u '${{ github.actor }}' --password-stdin
-
-            # Pull latest pre-built images from GHCR
+            # Pull latest pre-built images from Docker Hub
             sudo docker compose pull
 
             # Re-launch containers gracefully using the pulled images

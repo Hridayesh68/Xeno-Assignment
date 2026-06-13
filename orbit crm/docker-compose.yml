@@ -1,6 +1,6 @@
 services:
   crm-api:
-    image: ghcr.io/hridayesh68/xeno-assignment/crm-api:latest
+    image: ${DOCKERHUB_USERNAME}/crm-api:latest
     build:
       context: ./backend
       dockerfile: Dockerfile
@@ -19,7 +19,7 @@ services:
         max-file: "3"
 
   channel-service:
-    image: ghcr.io/hridayesh68/xeno-assignment/channel-service:latest
+    image: ${DOCKERHUB_USERNAME}/channel-service:latest
     build:
       context: ./channel-stub
       dockerfile: Dockerfile
