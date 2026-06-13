@@ -163,3 +163,40 @@ The Chat Copilot endpoint equips the LLM agent with the following executable too
 - When query tool results return numerical rows, a dynamic Recharts BarChart widget will render inline within the AI Copilot chat to visualize the data automatically.
 - Recharts visualizations (weekly dashboard AreaCharts and chat copilot BarCharts) utilize Tailwind theme-based utility classes (such as `fill-primary`, `fill-success`, `fill-info`, `stroke-primary`) to ensure visual compliance and crisp color rendering regardless of the active light/dark theme.
 
+---
+
+## 🚢 Dockerization & CI/CD Pipeline (Multi-Environment)
+
+We have fully dockerized both the frontend and backend services and set up an automated GitHub Actions workflow to handle split, environment-based deployments.
+
+### 1. Startup Commands (Docker Build)
+*   **Backend (FastAPI)**:
+    *   **Dockerfile Base**: `python:3.12-slim` (built optimized via astral-sh `uv`)
+    *   **Startup Command**: `CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]`
+*   **Frontend (Next.js)**:
+    *   **Dockerfile Base**: `node:20-alpine` (satisfying Next.js >= 20.9.0 engines)
+    *   **Startup Command**: `CMD ["npm", "run", "start"]`
+
+### 2. GitHub Actions Deployment Pipelines
+The pipeline in `.github/workflows/ci-cd.yml` triggers on push to the `main` branch:
+
+#### Verification Stage
+*   Lints code, verifies backend dependencies.
+*   Runs lightweight Docker build tests for all three containers (`crm-api`, `channel-service`, and `crm-frontend`) to ensure they compile correctly.
+
+#### Deploy Backend Job
+*   **Target Environment**: `ssh workflow docker backend`
+*   **Credentials Used**:
+    *   `SSH_SECRET_ENV`: SSH private key for EC2 instance.
+    *   `EC2_HOST`: Target host IP/domain.
+*   **Action**: SSHes into the EC2 instance, pulls the latest repository code, and performs a graceful `docker compose up --build -d` reload.
+
+#### Deploy Frontend Job
+*   **Target Environment**: `Production`
+*   **Credentials Used**:
+    *   `VERCEL_TOKEN`: Vercel personal access token.
+    *   `VERCEL_ORG_ID`: Vercel account/team ID.
+    *   `VERCEL_PROJECT_ID`: Vercel project ID.
+*   **Action**: Pulls environment configuration, builds prebuilt Next.js artifacts, and deploys them to production on Vercel.
+
+
