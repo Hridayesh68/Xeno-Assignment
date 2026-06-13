@@ -8,6 +8,10 @@ on:
     branches:
       - main
 
+permissions:
+  contents: read
+  packages: write
+
 jobs:
   lint-and-test:
     name: Lint, Test, and Build Verify
@@ -33,12 +37,37 @@ jobs:
           uv venv
           uv pip install -r requirements.txt
 
-      - name: Docker Build Test (Lightweight Verification)
+      - name: Docker Build Test (Lightweight Verification for PRs)
+        if: github.ref != 'refs/heads/main' || github.event_name != 'push'
         run: |
           cd "orbit crm"
           docker build -t crm-api:test ./backend
           docker build -t channel-service:test ./channel-stub
           docker build -t crm-frontend:test ./frontend
+
+      - name: Log in to GitHub Container Registry (GHCR)
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and Push Docker Images to GHCR
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        run: |
+          cd "orbit crm"
+          
+          # Convert repository name to lowercase
+          REPO_NAME=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
+          
+          # Build and Push Backend
+          docker build -t ghcr.io/${REPO_NAME}/crm-api:latest ./backend
+          docker push ghcr.io/${REPO_NAME}/crm-api:latest
+          
+          # Build and Push Channel Simulator
+          docker build -t ghcr.io/${REPO_NAME}/channel-service:latest ./channel-stub
+          docker push ghcr.io/${REPO_NAME}/channel-service:latest
 
   deploy-backend:
     name: Deploy Backend to AWS EC2
@@ -70,14 +99,30 @@ jobs:
             # Navigate to the directory containing docker-compose.yml
             cd 'orbit crm'
             
-            # Ensure .env file exists for docker-compose to find
-            if [ ! -f .env ]; then
-              cp .env.example .env
-            fi
+            # Generate the actual .env file dynamically with secrets from GitHub
+            echo 'DATABASE_URL=${{ secrets.DATABASE_URL }}' > .env
+            echo 'SECRET_KEY=${{ secrets.SECRET_KEY }}' >> .env
+            echo 'GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}' >> .env
+            echo 'OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}' >> .env
+            echo 'GROQ_API_KEY=${{ secrets.GROQ_API_KEY }}' >> .env
+            echo 'GROQ_MODEL=llama-3.3-70b-versatile' >> .env
+            echo 'CHANNEL_STUB_URL=http://channel-service:8001' >> .env
+            echo 'CRM_BASE_URL=http://crm-api:8000' >> .env
+            echo 'CRM_RECEIPT_URL=http://crm-api:8000/api/receipt' >> .env
+            echo 'ENVIRONMENT=production' >> .env
 
-            # Re-build and re-launch containers gracefully using sudo to prevent permission denied errors
+            # Convert repository name to lowercase
+            REPO_NAME=\$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')
+
+            # Log in to GHCR on the EC2 host to pull packages
+            echo '${{ secrets.GITHUB_TOKEN }}' | sudo docker login ghcr.io -u '${{ github.actor }}' --password-stdin
+
+            # Pull latest pre-built images from GHCR
+            sudo docker compose pull
+
+            # Re-launch containers gracefully using the pulled images
             sudo docker compose down
-            sudo docker compose up --build -d
+            sudo docker compose up -d
             
             # Wait for DB and container to be up
             echo 'Waiting for containers to start...'
