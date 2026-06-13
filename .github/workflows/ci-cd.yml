@@ -53,7 +53,7 @@ jobs:
 
       - name: Setup SSH Keys for AWS EC2 Connection
         env:
-          SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
+          SSH_KEY: ${{ secrets.SSH_SECRET_ENV }}
         run: |
           mkdir -p ~/.ssh
           echo "$SSH_KEY" > ~/.ssh/id_rsa
