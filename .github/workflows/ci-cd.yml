@@ -67,6 +67,9 @@ jobs:
             cd /home/ubuntu/orbit-crm
             git pull origin main
             
+            # Navigate to the directory containing docker-compose.yml
+            cd 'orbit crm'
+            
             # Re-build and re-launch containers gracefully
             docker compose down
             docker compose up --build -d
