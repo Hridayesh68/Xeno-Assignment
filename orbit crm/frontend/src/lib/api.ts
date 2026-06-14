@@ -1,4 +1,6 @@
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 
+  (process.env.NODE_ENV === "production" ? "http://100.53.223.156:8000" : "http://localhost:8000");
+
 
 async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
   const headers: Record<string, string> = {
