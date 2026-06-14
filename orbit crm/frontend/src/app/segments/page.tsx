@@ -2,22 +2,55 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Plus, Filter, Sparkles, Users, ChevronRight, Lightbulb } from "lucide-react";
-import { getSegments, Segment, aiSuggestSegments, AISegmentSuggestion } from "@/lib/api";
+import { useRouter } from "next/navigation";
+import { Plus, Filter, Sparkles, Users, ChevronRight, Lightbulb, Trash2, X } from "lucide-react";
+import { getSegments, Segment, aiSuggestSegments, AISegmentSuggestion, deleteSegment } from "@/lib/api";
 import { formatDate } from "@/lib/utils";
 
-function SegmentCard({ segment }: { segment: Segment }) {
+function SegmentCard({ 
+  segment, 
+  onDeleteRequest 
+}: { 
+  segment: Segment; 
+  onDeleteRequest: (id: string, name: string) => void;
+}) {
   const isAI = segment.filter_type === "ai";
+  const router = useRouter();
+
+  const handleDelete = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    onDeleteRequest(segment.id, segment.name);
+  };
+
+  const handleCardClick = (e: React.MouseEvent) => {
+    if ((e.target as HTMLElement).closest("button")) {
+      return;
+    }
+    router.push(`/segments/${segment.id}`);
+  };
+
   return (
-    <Link href={`/segments/${segment.id}`}
-      className="glass-card p-5 hover:border-primary/40 transition-all duration-200 hover:-translate-y-0.5 group block border border-base-content/10">
+    <div 
+      onClick={handleCardClick}
+      className="glass-card p-5 hover:border-primary/40 transition-all duration-200 hover:-translate-y-0.5 group block border border-base-content/10 cursor-pointer"
+    >
       <div className="flex items-start justify-between mb-3">
         <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-primary/10">
           {isAI ? <Sparkles size={18} className="text-primary" /> : <Filter size={18} className="text-secondary" />}
         </div>
-        <span className={`badge ${isAI ? "bg-primary/10 text-primary border-primary/20" : "bg-secondary/10 text-secondary border-secondary/20"} border`}>
-          {isAI ? "AI" : "Manual"}
-        </span>
+        <div className="flex items-center gap-1.5">
+          <button 
+            onClick={handleDelete}
+            className="p-1.5 rounded-lg text-base-content/50 hover:text-error hover:bg-error/10 transition-colors shrink-0 cursor-pointer"
+            title="Delete segment"
+          >
+            <Trash2 size={14} />
+          </button>
+          <span className={`badge ${isAI ? "bg-primary/10 text-primary border-primary/20" : "bg-secondary/10 text-secondary border-secondary/20"} border`}>
+            {isAI ? "AI" : "Manual"}
+          </span>
+        </div>
       </div>
       <h3 className="font-semibold text-base-content mb-1 group-hover:text-primary transition-colors">
         {segment.name}
@@ -35,7 +68,7 @@ function SegmentCard({ segment }: { segment: Segment }) {
         </div>
         <span className="text-xs text-base-content/40">{formatDate(segment.created_at)}</span>
       </div>
-    </Link>
+    </div>
   );
 }
 
@@ -60,7 +93,13 @@ export default function SegmentsPage() {
   const [suggestions, setSuggestions] = useState<AISegmentSuggestion[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
+  // Deletion Modal States
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deletingName, setDeletingName] = useState<string>("");
+  const [deleting, setDeleting] = useState(false);
+
+  const load = () => {
+    setLoading(true);
     Promise.all([
       getSegments(),
       aiSuggestSegments(),
@@ -68,7 +107,32 @@ export default function SegmentsPage() {
       setSegments(segs);
       setSuggestions(suggs);
     }).catch(console.error).finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    load();
   }, []);
+
+  const handleDeleteRequest = (id: string, name: string) => {
+    setDeletingId(id);
+    setDeletingName(name);
+  };
+
+  const confirmDelete = async () => {
+    if (!deletingId) return;
+    setDeleting(true);
+    try {
+      await deleteSegment(deletingId);
+      setDeletingId(null);
+      setDeletingName("");
+      load();
+    } catch (err: any) {
+      console.error(err);
+      alert(err.message || "Failed to delete segment.");
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   return (
     <div className="p-8 animate-in">
@@ -105,7 +169,13 @@ export default function SegmentsPage() {
             </div>
           ) : (
             <div className="grid grid-cols-2 gap-4">
-              {segments.map(s => <SegmentCard key={s.id} segment={s} />)}
+              {segments.map(s => (
+                <SegmentCard 
+                  key={s.id} 
+                  segment={s} 
+                  onDeleteRequest={handleDeleteRequest} 
+                />
+              ))}
             </div>
           )}
         </div>
@@ -136,6 +206,41 @@ export default function SegmentsPage() {
           </div>
         </div>
       </div>
+
+      {/* Custom Confirmation Modal */}
+      {deletingId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in">
+          <div className="bg-base-100 rounded-2xl w-full max-w-sm overflow-hidden shadow-2xl border border-base-content/10 p-6">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-bold text-lg text-base-content">Delete Segment?</h3>
+              <button 
+                onClick={() => setDeletingId(null)}
+                className="p-1 rounded-lg text-base-content/50 hover:bg-base-content/10 transition-colors"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <p className="text-sm text-base-content/60 mb-6">
+              Are you sure you want to delete segment <strong className="text-base-content">"{deletingName}"</strong> and all its associated campaigns? This action is permanent.
+            </p>
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setDeletingId(null)}
+                className="px-4 py-2 rounded-xl text-sm font-medium text-base-content/70 hover:bg-base-content/5 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDelete}
+                disabled={deleting}
+                className="px-4 py-2 rounded-xl text-sm font-semibold text-error-content bg-error hover:opacity-90 transition-opacity disabled:opacity-50"
+              >
+                {deleting ? "Deleting..." : "Delete"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

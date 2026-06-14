@@ -332,3 +332,9 @@ export const deleteCustomer = (id: string) =>
     method: "DELETE",
   });
 
+export const deleteSegment = (id: string) =>
+  apiFetch<{ message: string }>(`/api/segments/${id}`, {
+    method: "DELETE",
+  });
+
+

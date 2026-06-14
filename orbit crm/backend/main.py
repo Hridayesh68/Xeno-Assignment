@@ -495,6 +495,17 @@ def delete_customer_by_id(customer_id: str, db: Session = Depends(get_db)):
     db.commit()
     return {"message": "Customer successfully deleted"}
 
+@app.delete("/api/segments/{segment_id}")
+def delete_segment_by_id(segment_id: str, db: Session = Depends(get_db)):
+    segment = db.query(models.Segment).filter(models.Segment.id == segment_id).first()
+    if not segment:
+        raise HTTPException(status_code=404, detail="Segment not found")
+    
+    db.delete(segment)
+    db.commit()
+    return {"message": "Segment successfully deleted"}
+
+
 
 # ─── AI Endpoints ─────────────────────────────────────────────────────────────
 

@@ -3,9 +3,9 @@
 import { useEffect, useState } from "react";
 import { use } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronLeft, Users, Megaphone, Sparkles, Filter } from "lucide-react";
+import { ChevronLeft, Users, Megaphone, Sparkles, Filter, Trash2, X } from "lucide-react";
 import Link from "next/link";
-import { getSegment, previewSegment, Segment, SegmentPreview } from "@/lib/api";
+import { getSegment, previewSegment, Segment, SegmentPreview, deleteSegment } from "@/lib/api";
 import { formatDate, formatCurrency } from "@/lib/utils";
 
 export default function SegmentDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -14,6 +14,10 @@ export default function SegmentDetailPage({ params }: { params: Promise<{ id: st
   const [segment, setSegment] = useState<Segment | null>(null);
   const [preview, setPreview] = useState<SegmentPreview | null>(null);
   const [loading, setLoading] = useState(true);
+
+  // Custom Deletion Dialog States
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     Promise.all([getSegment(id), previewSegment(id)])
@@ -30,6 +34,24 @@ export default function SegmentDetailPage({ params }: { params: Promise<{ id: st
   const OP_LABELS: Record<string, string> = {
     gt: ">", gte: "≥", lt: "<", lte: "≤", eq: "=", neq: "≠",
     contains: "contains", in: "in",
+  };
+
+  const handleDelete = () => {
+    setShowDeleteConfirm(true);
+  };
+
+  const confirmDelete = async () => {
+    setDeleting(true);
+    try {
+      await deleteSegment(id);
+      setShowDeleteConfirm(false);
+      router.push("/segments");
+    } catch (err: any) {
+      console.error(err);
+      alert(err.message || "Failed to delete segment.");
+    } finally {
+      setDeleting(false);
+    }
   };
 
   if (loading) {
@@ -61,12 +83,20 @@ export default function SegmentDetailPage({ params }: { params: Promise<{ id: st
           </div>
           <p className="text-base-content/60 mt-1">{segment.description || "No description"}</p>
         </div>
-        <Link href={`/campaigns/new?segment_id=${segment.id}`}
-          className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-primary-content bg-primary hover:opacity-90">
-          <Megaphone size={14} />
-          Create Campaign
-        </Link>
+        <div className="flex items-center gap-2">
+          <button onClick={handleDelete}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-error bg-error/10 hover:bg-error/20 border border-error/20 transition-all">
+            <Trash2 size={14} />
+            Delete Segment
+          </button>
+          <Link href={`/campaigns/new?segment_id=${segment.id}`}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-primary-content bg-primary hover:opacity-90">
+            <Megaphone size={14} />
+            Create Campaign
+          </Link>
+        </div>
       </div>
+
 
       {/* Stats */}
       <div className="grid grid-cols-2 gap-4 mb-6">
@@ -148,6 +178,41 @@ export default function SegmentDetailPage({ params }: { params: Promise<{ id: st
                 </span>
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* Custom Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in">
+          <div className="bg-base-100 rounded-2xl w-full max-w-sm overflow-hidden shadow-2xl border border-base-content/10 p-6">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-bold text-lg text-base-content">Delete Segment?</h3>
+              <button 
+                onClick={() => setShowDeleteConfirm(false)}
+                className="p-1 rounded-lg text-base-content/50 hover:bg-base-content/10 transition-colors"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <p className="text-sm text-base-content/60 mb-6">
+              Are you sure you want to delete segment <strong className="text-base-content">"{segment.name}"</strong> and all its associated campaigns? This action is permanent.
+            </p>
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setShowDeleteConfirm(false)}
+                className="px-4 py-2 rounded-xl text-sm font-medium text-base-content/70 hover:bg-base-content/5 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDelete}
+                disabled={deleting}
+                className="px-4 py-2 rounded-xl text-sm font-semibold text-error-content bg-error hover:opacity-90 transition-opacity disabled:opacity-50"
+              >
+                {deleting ? "Deleting..." : "Delete"}
+              </button>
+            </div>
           </div>
         </div>
       )}

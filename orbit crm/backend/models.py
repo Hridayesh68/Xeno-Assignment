@@ -65,7 +65,7 @@ class Segment(Base):
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
 
-    campaigns = relationship("Campaign", back_populates="segment")
+    campaigns = relationship("Campaign", back_populates="segment", cascade="all, delete-orphan")
 
 
 class CampaignStatus(str, enum.Enum):
