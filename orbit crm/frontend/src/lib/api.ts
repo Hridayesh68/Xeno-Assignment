@@ -1,5 +1,18 @@
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 
-  (process.env.NODE_ENV === "production" ? "http://100.53.223.156:8000" : "http://localhost:8000");
+let API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://100.53.223.156:8000";
+
+// If loaded over HTTPS in the browser, prevent Mixed Content errors
+if (typeof window !== "undefined" && window.location.protocol === "https:") {
+  if (API_BASE.startsWith("http://") && !API_BASE.includes("localhost") && !API_BASE.includes("127.0.0.1")) {
+    const isIP = /\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}/.test(API_BASE);
+    if (isIP) {
+      // For raw IP address backend, proxy relatively via Next.js rewrite to avoid browser Mixed Content errors
+      API_BASE = "";
+    } else {
+      // For domain names, upgrade to HTTPS
+      API_BASE = API_BASE.replace("http://", "https://");
+    }
+  }
+}
 
 
 async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {

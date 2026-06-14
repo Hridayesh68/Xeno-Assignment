@@ -10,7 +10,7 @@ class Settings(BaseSettings):
     gemini_api_key: str = ""
     groq_model: str = "llama-3.3-70b-versatile"
     channel_stub_url: str = "http://localhost:8001"
-    crm_base_url: str = "http://localhost:8000"
+    crm_base_url: str = "http://100.53.223.156:8000"
     environment: str = "development"
     secret_key: str = "xeno_secret_key_change_me_in_production"
 

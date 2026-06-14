@@ -33,7 +33,7 @@ logger = logging.getLogger("channel-stub")
 
 
 class Settings(BaseSettings):
-    crm_receipt_url: str = "http://localhost:8000/api/receipt"
+    crm_receipt_url: str = "http://100.53.223.156:8000/api/receipt"
     port: int = 8001
 
     class Config:
