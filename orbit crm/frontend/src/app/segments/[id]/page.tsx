@@ -68,7 +68,8 @@ export default function SegmentDetailPage({ params }: { params: Promise<{ id: st
   const isAI = segment.filter_type === "ai";
 
   return (
-    <div className="p-8 animate-in max-w-3xl">
+    <>
+      <div className="p-8 animate-in max-w-3xl">
       <div className="flex items-center gap-3 mb-8">
         <button onClick={() => router.back()}
           className="p-2 rounded-xl text-base-content/50 hover:text-base-content hover:bg-base-content/5 transition-colors">
@@ -181,8 +182,9 @@ export default function SegmentDetailPage({ params }: { params: Promise<{ id: st
           </div>
         </div>
       )}
+    </div>
 
-      {/* Custom Confirmation Modal */}
+    {/* Custom Confirmation Modal */}
       {showDeleteConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in">
           <div className="bg-base-100 rounded-2xl w-full max-w-sm overflow-hidden shadow-2xl border border-base-content/10 p-6">
@@ -216,6 +218,6 @@ export default function SegmentDetailPage({ params }: { params: Promise<{ id: st
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }

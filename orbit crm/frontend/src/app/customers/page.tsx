@@ -73,7 +73,8 @@ export default function CustomersPage() {
   const CITIES = ["Mumbai", "Delhi", "Bangalore", "Chennai", "Hyderabad", "Pune", "Kolkata"];
 
   return (
-    <div className="p-8 animate-in">
+    <>
+      <div className="p-8 animate-in">
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div>
@@ -214,8 +215,9 @@ export default function CustomersPage() {
           </tbody>
         </table>
       </div>
+    </div>
 
-      {/* Add Customer Modal */}
+    {/* Add Customer Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in">
           <div className="bg-base-100 rounded-2xl w-full max-w-md overflow-hidden shadow-2xl border border-base-content/10 flex flex-col max-h-[90vh]">
@@ -296,6 +298,6 @@ export default function CustomersPage() {
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }

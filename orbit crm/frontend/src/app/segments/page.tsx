@@ -135,7 +135,8 @@ export default function SegmentsPage() {
   };
 
   return (
-    <div className="p-8 animate-in">
+    <>
+      <div className="p-8 animate-in">
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div>
@@ -206,8 +207,9 @@ export default function SegmentsPage() {
           </div>
         </div>
       </div>
+    </div>
 
-      {/* Custom Confirmation Modal */}
+    {/* Custom Confirmation Modal */}
       {deletingId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in">
           <div className="bg-base-100 rounded-2xl w-full max-w-sm overflow-hidden shadow-2xl border border-base-content/10 p-6">
@@ -241,6 +243,6 @@ export default function SegmentsPage() {
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }

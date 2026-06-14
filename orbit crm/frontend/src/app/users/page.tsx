@@ -84,7 +84,8 @@ export default function UsersPage() {
   );
 
   return (
-    <div className="p-8 animate-in">
+    <>
+      <div className="p-8 animate-in">
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div>
@@ -206,8 +207,9 @@ export default function UsersPage() {
           </div>
         </div>
       </div>
+    </div>
 
-      {/* Add User Modal */}
+    {/* Add User Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in">
           <div className="bg-base-100 rounded-2xl w-full max-w-md overflow-hidden shadow-2xl border border-base-content/10 flex flex-col max-h-[90vh]">
@@ -287,7 +289,7 @@ export default function UsersPage() {
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }
 
